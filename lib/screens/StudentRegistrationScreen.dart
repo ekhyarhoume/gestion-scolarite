@@ -1,0 +1,277 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/material.dart';
+
+class StudentRegistrationScreen extends StatefulWidget {
+  const StudentRegistrationScreen({Key? key}) : super(key: key);
+
+  @override
+  _StudentRegistrationScreenState createState() => _StudentRegistrationScreenState();
+}
+
+class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController bacNumberController = TextEditingController();
+  final TextEditingController nniController = TextEditingController();
+  String? selectedFiliere;
+  String? selectedAnnee;
+  XFile? _image;
+  String? _filePath;
+
+  final List<String> filieres = ['Informatique de gestion', 'Finance comptabilite', 'Banque et assurance', 'Gestion de ressource humaine', 'Technique Commerciale et Marketing', 'Statistique appliquee a la economie'];
+  final List<String> annees = ['L1', 'L2', 'L3', 'M1', 'M2'];
+
+  bool _paymentMade = false;
+
+  // Méthode pour choisir la photo
+  Future<void> _pickImage() async {
+    final ImagePicker _picker = ImagePicker();
+    final XFile? pickedImage = await _picker.pickImage(source: ImageSource.gallery);
+    setState(() {
+      _image = pickedImage;
+    });
+  }
+
+  Future<void> _pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      setState(() {
+        _filePath = result.files.single.path;
+      });
+    }
+  }
+
+  // Sauvegarder les données de l'étudiant dans Firestore et naviguer vers ReceiptScreen
+  Future<void> _registerStudent() async {
+    if (_image == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez choisir une photo')),
+      );
+      return;
+    }
+
+    // Télécharger l'image sur Firebase Storage
+    final Reference storageRef =
+        FirebaseStorage.instance.ref().child('student_photos/${_image!.name}');
+    final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
+    final TaskSnapshot downloadUrl = await uploadTask;
+    final String imageUrl = await downloadUrl.ref.getDownloadURL();
+
+    // Sauvegarder les données de l'étudiant dans Firestore
+    final studentData = {
+      'name': nameController.text,
+      'lastName': lastNameController.text,
+      'email': emailController.text,
+      'bacNumber': bacNumberController.text,
+      'nni': nniController.text,
+      'filiere': selectedFiliere ?? 'Non spécifiée',
+      'photoUrl': imageUrl,
+      'paymentStatus': _paymentMade ? 'Payé' : 'Non payé',
+      'registrationDate': Timestamp.now(),
+    };
+
+    await FirebaseFirestore.instance.collection('students').add(studentData);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Inscription réussie !')),
+    );
+
+    // Naviguer vers le ReceiptScreen après inscription réussie
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReceiptScreen(
+          name: nameController.text,
+          lastName: lastNameController.text,
+          filiere: selectedFiliere ?? 'Non spécifiée',
+          annee: selectedAnnee ?? 'Non spécifiée',
+          montant: 100.0,  // Montant fixe ou variable selon l'inscription
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Inscription d\'un nouvel étudiant',
+        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,color: Colors.white),
+        ),
+        elevation: 30,
+        backgroundColor: Colors.teal,
+      ),
+      body: Container(
+        // Appliquer un background color ou un dégradé
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue, Colors.green], // Dégradé du bleu au vert
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: ListView(
+            children: <Widget>[
+              const Text(
+                'Informations personnelles',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Nom',
+                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15), // Coins arrondis
+                    borderSide: BorderSide(
+                      color: Colors.white, // Couleur de la bordure
+                      width: 2, // Épaisseur de la bordure
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: lastNameController,
+                decoration: InputDecoration(
+                  labelText: 'Prénom',
+                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15), // Coins arrondis
+                    borderSide: BorderSide(
+                      color: Colors.white, // Couleur de la bordure
+                      width: 2, // Épaisseur de la bordure
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15), // Coins arrondis
+                    borderSide: BorderSide(
+                      color: Colors.white, // Couleur de la bordure
+                      width: 2, // Épaisseur de la bordure
+                    ),
+                  ),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: bacNumberController,
+                decoration: InputDecoration(
+                  labelText: 'Numéro Bac',
+                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15), // Coins arrondis
+                    borderSide: BorderSide(
+                      color: Colors.white, // Couleur de la bordure
+                      width: 2, // Épaisseur de la bordure
+                    ),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: nniController,
+                decoration: InputDecoration(
+                  labelText: 'Numéro NNI',
+                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15), // Coins arrondis
+                    borderSide: BorderSide(
+                      color: Colors.white, // Couleur de la bordure
+                      width: 2, // Épaisseur de la bordure
+                    ),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                value: selectedFiliere,
+                items: filieres.map((String filiere) {
+                  return DropdownMenuItem<String>(
+                    value: filiere,
+                    child: Text(filiere),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedFiliere = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  labelText: 'Filière',
+                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15), // Coins arrondis
+                    borderSide: BorderSide(
+                      color: Colors.white, // Couleur de la bordure
+                      width: 2, // Épaisseur de la bordure
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                value: selectedAnnee,
+                items: annees.map((String annee) {
+                  return DropdownMenuItem<String>(
+                    value: annee,
+                    child: Text(annee),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedAnnee = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  labelText: 'Année d\'étude',
+                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15), // Coins arrondis
+                    borderSide: BorderSide(
+                      color: Colors.white, // Couleur de la bordure
+                      width: 2, // Épaisseur de la bordure
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _pickImage,
+                child: const Text('Choisir une photo'),
+              ),
+              if (_image != null) ...[
+                const SizedBox(height: 10),
+                Text('Photo sélectionnée: ${_image!.name}', style: TextStyle(color: Colors.white)),
+              ],
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _registerStudent,
+                child: const Text('S\'inscrire'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
