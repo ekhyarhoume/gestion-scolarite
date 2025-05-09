@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({Key? key}) : super(key: key);
@@ -50,50 +51,75 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   // Sauvegarder les données de l'étudiant dans Firestore
   Future<void> _registerStudent() async {
     // Validation des champs
-   
-
-    // final double montant = double.tryParse(montantController.text) ?? 0.0; // Utiliser le montant saisi
-
-    // if (montant <= 0) {
-    //   _showErrorDialog("Veuillez entrer un montant valide !");
-    //   return;
-    // }
-
-    // Télécharger l'image sur Firebase Storage
+    if (nameController.text.isEmpty) {
+      _showErrorDialog("Le nom est requis");
+      return;
+    }
+    if (lastNameController.text.isEmpty) {
+      _showErrorDialog("Le prénom est requis");
+      return;
+    }
+    if (cinController.text.isEmpty || !RegExp(r'^\d{10}$').hasMatch(cinController.text)) {
+      _showErrorDialog("Le CIN doit contenir exactement 10 chiffres");
+      return;
+    }
+    if (phoneController.text.isEmpty || !RegExp(r'^\d{5}$').hasMatch(phoneController.text)) {
+      _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
+      return;
+    }
+    if (selectedFiliere == null) {
+      _showErrorDialog("Veuillez sélectionner une filière");
+      return;
+    }
     if (_image == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez choisir une photo')),
-      );
+      _showErrorDialog("Veuillez choisir une photo");
       return;
     }
 
-    final Reference storageRef =
-        FirebaseStorage.instance.ref().child('student_photos/${_image!.name}');
-    final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
-    final TaskSnapshot downloadUrl = await uploadTask;
-    final String imageUrl = await downloadUrl.ref.getDownloadURL();
+    try {
+      // Télécharger l'image sur Firebase Storage
+      final Reference storageRef =
+          FirebaseStorage.instance.ref().child('student_photos/${_image!.name}');
+      final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
+      final TaskSnapshot downloadUrl = await uploadTask;
+      final String imageUrl = await downloadUrl.ref.getDownloadURL();
 
-    // Sauvegarder les données de l'étudiant dans Firestore
-    final studentData = {
-      'name': nameController.text,
-      'lastName': lastNameController.text,
-      'email': phoneController.text,
-      'bacNumber': phoneController.text,
-      'nni': cinController.text,
-      'filiere': selectedFiliere ?? 'Non spécifiée',
-      'photoUrl': imageUrl,
-      'paymentStatus': _paymentSuccessful ? 'Payé' : 'Non payé',
-      'registrationDate': Timestamp.now(),
-    };
+      // Sauvegarder les données de l'étudiant dans Firestore
+      final studentData = {
+        'name': nameController.text,
+        'lastName': lastNameController.text,
+        'email': phoneController.text,
+        'bacNumber': phoneController.text,
+        'nni': cinController.text,
+        'filiere': selectedFiliere,
+        'photoUrl': imageUrl,
+        'paymentStatus': _paymentSuccessful ? 'Payé' : 'Non payé',
+        'registrationDate': Timestamp.now(),
+        'type': 'ancien', // Ajout du type d'étudiant
+      };
 
-    await FirebaseFirestore.instance.collection('students').add(studentData);
+      await FirebaseFirestore.instance.collection('students').add(studentData);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Inscription réussie !')),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inscription réussie !')),
+      );
 
-    // Naviguer vers l'écran de confirmation ou de reçu
-    Navigator.pop(context);  // Exemple pour revenir à l'écran précédent
+      // Naviguer vers le ReceiptScreen après inscription réussie
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReceiptScreen(
+            name: nameController.text,
+            lastName: lastNameController.text,
+            filiere: selectedFiliere!,
+            annee: selectedAnnee ?? 'Non spécifiée',
+            montant: 100.0,
+          ),
+        ),
+      );
+    } catch (e) {
+      _showErrorDialog("Une erreur est survenue lors de l'inscription: ${e.toString()}");
+    }
   }
 
   // Fonction pour afficher un alert dialog
@@ -307,10 +333,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
             
               ElevatedButton(
-          onPressed: () {
-            // Navigation vers l'écran administrateur
-            Navigator.pushNamed(context, '/admin');
-          },
+          onPressed: _registerStudent,
           child: const Text('S\'inscrire'),
         ),
       

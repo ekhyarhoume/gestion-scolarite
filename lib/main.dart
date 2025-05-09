@@ -4,7 +4,7 @@ import 'package:gestion_scolarite/screens/LoginRegisterScreen.dart';
 import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
 import 'package:gestion_scolarite/screens/RegistrationForm.dart';
 import 'package:gestion_scolarite/screens/AdminScreen.dart';
-// import 'package:gestion_scolarite/screens/HomeScreen.dart';
+import 'package:gestion_scolarite/screens/AdminDashboardScreen.dart';
 import 'package:gestion_scolarite/screens/home_screen.dart';  // Importer le fichier HomeScreen
 
 void main() {
@@ -26,10 +26,10 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const HomeScreen(),  // Utiliser HomeScreen depuis le fichier séparé
         '/admin': (context) => const AdminScreen(),
+        '/admin-dashboard': (context) => const AdminDashboardScreen(),
         '/inscription': (context) => const RegistrationScreen(),
         '/login': (context) => const LoginRegisterScreen(),
         '/home': (context) => const HomePage(),
-        
       },
     );
   }

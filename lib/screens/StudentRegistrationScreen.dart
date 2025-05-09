@@ -49,51 +49,105 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
 
   // Sauvegarder les données de l'étudiant dans Firestore et naviguer vers ReceiptScreen
   Future<void> _registerStudent() async {
+    // Validation des champs
+    if (nameController.text.isEmpty) {
+      _showErrorDialog("Le nom est requis");
+      return;
+    }
+    if (lastNameController.text.isEmpty) {
+      _showErrorDialog("Le prénom est requis");
+      return;
+    }
+    if (emailController.text.isEmpty || !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(emailController.text)) {
+      _showErrorDialog("Veuillez entrer une adresse email valide");
+      return;
+    }
+    if (bacNumberController.text.isEmpty || !RegExp(r'^\d{5}$').hasMatch(bacNumberController.text)) {
+      _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
+      return;
+    }
+    if (nniController.text.isEmpty || !RegExp(r'^\d{10}$').hasMatch(nniController.text)) {
+      _showErrorDialog("Le numéro NNI doit contenir exactement 10 chiffres");
+      return;
+    }
+    if (selectedFiliere == null) {
+      _showErrorDialog("Veuillez sélectionner une filière");
+      return;
+    }
+    if (selectedAnnee == null) {
+      _showErrorDialog("Veuillez sélectionner une année d'étude");
+      return;
+    }
     if (_image == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez choisir une photo')),
-      );
+      _showErrorDialog("Veuillez choisir une photo");
       return;
     }
 
-    // Télécharger l'image sur Firebase Storage
-    final Reference storageRef =
-        FirebaseStorage.instance.ref().child('student_photos/${_image!.name}');
-    final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
-    final TaskSnapshot downloadUrl = await uploadTask;
-    final String imageUrl = await downloadUrl.ref.getDownloadURL();
+    try {
+      // Télécharger l'image sur Firebase Storage
+      final Reference storageRef =
+          FirebaseStorage.instance.ref().child('student_photos/${_image!.name}');
+      final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
+      final TaskSnapshot downloadUrl = await uploadTask;
+      final String imageUrl = await downloadUrl.ref.getDownloadURL();
 
-    // Sauvegarder les données de l'étudiant dans Firestore
-    final studentData = {
-      'name': nameController.text,
-      'lastName': lastNameController.text,
-      'email': emailController.text,
-      'bacNumber': bacNumberController.text,
-      'nni': nniController.text,
-      'filiere': selectedFiliere ?? 'Non spécifiée',
-      'photoUrl': imageUrl,
-      'paymentStatus': _paymentMade ? 'Payé' : 'Non payé',
-      'registrationDate': Timestamp.now(),
-    };
+      // Sauvegarder les données de l'étudiant dans Firestore
+      final studentData = {
+        'name': nameController.text,
+        'lastName': lastNameController.text,
+        'email': emailController.text,
+        'bacNumber': bacNumberController.text,
+        'nni': nniController.text,
+        'filiere': selectedFiliere,
+        'annee': selectedAnnee,
+        'photoUrl': imageUrl,
+        'paymentStatus': _paymentMade ? 'Payé' : 'Non payé',
+        'registrationDate': Timestamp.now(),
+        'type': 'nouveau', // Ajout du type d'étudiant
+      };
 
-    await FirebaseFirestore.instance.collection('students').add(studentData);
+      await FirebaseFirestore.instance.collection('students').add(studentData);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Inscription réussie !')),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inscription réussie !')),
+      );
 
-    // Naviguer vers le ReceiptScreen après inscription réussie
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReceiptScreen(
-          name: nameController.text,
-          lastName: lastNameController.text,
-          filiere: selectedFiliere ?? 'Non spécifiée',
-          annee: selectedAnnee ?? 'Non spécifiée',
-          montant: 100.0,  // Montant fixe ou variable selon l'inscription
+      // Naviguer vers le ReceiptScreen après inscription réussie
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReceiptScreen(
+            name: nameController.text,
+            lastName: lastNameController.text,
+            filiere: selectedFiliere!,
+            annee: selectedAnnee!,
+            montant: 100.0,
+          ),
         ),
-      ),
+      );
+    } catch (e) {
+      _showErrorDialog("Une erreur est survenue lors de l'inscription: ${e.toString()}");
+    }
+  }
+
+  // Fonction pour afficher un alert dialog
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Erreur"),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
     );
   }
 
