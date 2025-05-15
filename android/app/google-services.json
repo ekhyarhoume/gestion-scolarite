@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "484865886636",
+    "project_id": "studentregistrationapp-a6654",
+    "storage_bucket": "studentregistrationapp-a6654.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:484865886636:android:80b4cd49baa588fe805209",
+        "android_client_info": {
+          "package_name": "com.iscae.gestion_scolarite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFrK7G8acaMFQ2M0Iuh8j2vSKoSyGl8hM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

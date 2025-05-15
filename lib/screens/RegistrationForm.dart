@@ -19,6 +19,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController cinController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController montantController = TextEditingController();  // Nouveau champ pour le montant
+  final TextEditingController studentNumberController = TextEditingController(); // Ajout du contrôleur pour le numéro d'étudiant
   String? selectedFiliere;
   String? selectedAnnee;
   final List<String> filieres = ['Informatique de gestion', 'Finance comptabilite', 'Banque et assurance', 'Gestion de ressource humaine', 'Technique Commerciale et Marketing', 'Statistique appliquee a la economie'];
@@ -67,6 +68,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
       return;
     }
+    if (studentNumberController.text.isEmpty || !RegExp(r'^\d{8}$').hasMatch(studentNumberController.text)) {
+      _showErrorDialog("Le numéro d'étudiant doit contenir exactement 8 chiffres");
+      return;
+    }
     if (selectedFiliere == null) {
       _showErrorDialog("Veuillez sélectionner une filière");
       return;
@@ -91,6 +96,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         'email': phoneController.text,
         'bacNumber': phoneController.text,
         'nni': cinController.text,
+        'studentNumber': studentNumberController.text, // Ajout du numéro d'étudiant
         'filiere': selectedFiliere,
         'photoUrl': imageUrl,
         'paymentStatus': _paymentSuccessful ? 'Payé' : 'Non payé',
@@ -256,6 +262,28 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   return null;
                 },
               ),
+              const SizedBox(height: 15),
+              TextFormField(
+                controller: studentNumberController,
+                decoration: InputDecoration(
+                  labelText: 'Numéro d\'étudiant',
+                  labelStyle: const TextStyle(color: Colors.white),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide(
+                      color: Colors.white,
+                      width: 2,
+                    ),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value!.isEmpty || value.length != 8 || !RegExp(r'^\d{8}$').hasMatch(value)) {
+                    return 'Le numéro d\'étudiant doit contenir exactement 8 chiffres';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 20),
               const Text(
                 'Informations académiques',
@@ -324,23 +352,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ],
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _pickFile,
-                child: const Text('Choisir un fichier justificatif'),
+                onPressed: _registerStudent,
+                child: const Text('S\'inscrire'),
               ),
-              if (_filePath != null)
-                Text('Fichier sélectionné: $_filePath', style: TextStyle(color: Colors.white)),
-              const SizedBox(height: 20),
-
-            
-              ElevatedButton(
-          onPressed: _registerStudent,
-          child: const Text('S\'inscrire'),
-        ),
-      
-              // ElevatedButton(
-              //   onPressed: _registerStudent,
-              //   child: const Text('S\'inscrire'),
-              // ),
             ],
           ),
         ),

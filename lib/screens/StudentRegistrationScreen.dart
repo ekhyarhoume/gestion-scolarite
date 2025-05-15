@@ -38,6 +38,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
     });
   }
 
+  // Méthode pour choisir le fichier justificatif
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles();
     if (result != null) {
@@ -317,6 +318,13 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 const SizedBox(height: 10),
                 Text('Photo sélectionnée: ${_image!.name}', style: TextStyle(color: Colors.white)),
               ],
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _pickFile,
+                child: const Text('Choisir un fichier justificatif'),
+              ),
+              if (_filePath != null)
+                Text('Fichier sélectionné: $_filePath', style: TextStyle(color: Colors.white)),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _registerStudent,
