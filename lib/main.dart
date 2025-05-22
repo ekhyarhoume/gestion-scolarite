@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:gestion_scolarite/pages/HomePage.dart';
 import 'package:gestion_scolarite/screens/LoginRegisterScreen.dart';
 import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
@@ -7,7 +8,9 @@ import 'package:gestion_scolarite/screens/AdminScreen.dart';
 import 'package:gestion_scolarite/screens/AdminDashboardScreen.dart';
 import 'package:gestion_scolarite/screens/home_screen.dart';  // Importer le fichier HomeScreen
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 

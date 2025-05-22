@@ -1,0 +1,2 @@
+/home/ekhyarhoum/gestion-scolarite/android/app/.cxx/Debug/626b2y2f/x86_64/CMakeFiles/edit_cache.dir
+/home/ekhyarhoum/gestion-scolarite/android/app/.cxx/Debug/626b2y2f/x86_64/CMakeFiles/rebuild_cache.dir

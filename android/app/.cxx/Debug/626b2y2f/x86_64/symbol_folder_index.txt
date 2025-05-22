@@ -1,0 +1,1 @@
+/home/ekhyarhoum/gestion-scolarite/build/app/intermediates/cxx/Debug/626b2y2f/obj/x86_64

@@ -19,7 +19,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController cinController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController montantController = TextEditingController();  // Nouveau champ pour le montant
-  final TextEditingController studentNumberController = TextEditingController(); // Ajout du contrôleur pour le numéro d'étudiant
+  final TextEditingController studentNumberController = TextEditingController();
   String? selectedFiliere;
   String? selectedAnnee;
   final List<String> filieres = ['Informatique de gestion', 'Finance comptabilite', 'Banque et assurance', 'Gestion de ressource humaine', 'Technique Commerciale et Marketing', 'Statistique appliquee a la economie'];
@@ -80,6 +80,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _showErrorDialog("Veuillez choisir une photo");
       return;
     }
+    if (montantController.text.isEmpty || double.tryParse(montantController.text) == null) {
+      _showErrorDialog("Veuillez entrer un montant valide");
+      return;
+    }
 
     try {
       // Télécharger l'image sur Firebase Storage
@@ -96,12 +100,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         'email': phoneController.text,
         'bacNumber': phoneController.text,
         'nni': cinController.text,
-        'studentNumber': studentNumberController.text, // Ajout du numéro d'étudiant
+        'studentNumber': studentNumberController.text,
         'filiere': selectedFiliere,
         'photoUrl': imageUrl,
+        'montant': double.parse(montantController.text),  // Utiliser le montant saisi
         'paymentStatus': _paymentSuccessful ? 'Payé' : 'Non payé',
         'registrationDate': Timestamp.now(),
-        'type': 'ancien', // Ajout du type d'étudiant
+        'type': 'ancien',
       };
 
       await FirebaseFirestore.instance.collection('students').add(studentData);
@@ -119,7 +124,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             lastName: lastNameController.text,
             filiere: selectedFiliere!,
             annee: selectedAnnee ?? 'Non spécifiée',
-            montant: 100.0,
+            montant: double.parse(montantController.text),
           ),
         ),
       );
@@ -154,16 +159,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inscription d\'un ancien étudiant',
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,color: Colors.white),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         elevation: 30,
         backgroundColor: Colors.teal,
       ),
       body: Container(
-        // Appliquer un background color ou un dégradé
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue, Colors.green], // Dégradé du bleu au vert
+            colors: [Colors.blue, Colors.green],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -270,10 +274,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   labelStyle: const TextStyle(color: Colors.white),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide(
-                      color: Colors.white,
-                      width: 2,
-                    ),
+                    borderSide: const BorderSide(color: Colors.white, width: 2),
                   ),
                 ),
                 keyboardType: TextInputType.number,
@@ -342,6 +343,26 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+              // Nouveau champ pour le paiement
+              TextFormField(
+                controller: montantController,
+                decoration: InputDecoration(
+                  labelText: 'Montant à payer',
+                  labelStyle: const TextStyle(color: Colors.white),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: Colors.white, width: 2),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || double.tryParse(value) == null) {
+                    return 'Veuillez entrer un montant valide';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _pickImage,
                 child: const Text('Choisir une photo'),
@@ -350,6 +371,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 const SizedBox(height: 10),
                 Text('Photo sélectionnée: ${_image!.name}', style: TextStyle(color: Colors.white)),
               ],
+             
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _registerStudent,

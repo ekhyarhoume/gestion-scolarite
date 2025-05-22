@@ -1,3 +1,4 @@
+
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -19,26 +20,34 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController bacNumberController = TextEditingController();
   final TextEditingController nniController = TextEditingController();
+  final TextEditingController montantController = TextEditingController();
+  final TextEditingController paymentController = TextEditingController();
   String? selectedFiliere;
   String? selectedAnnee;
   XFile? _image;
   String? _filePath;
-
-  final List<String> filieres = ['Informatique de gestion', 'Finance comptabilite', 'Banque et assurance', 'Gestion de ressource humaine', 'Technique Commerciale et Marketing', 'Statistique appliquee a la economie'];
-  final List<String> annees = ['L1', 'L2', 'L3', 'M1', 'M2'];
-
   bool _paymentMade = false;
 
-  // Méthode pour choisir la photo
+  final List<String> filieres = [
+    'Informatique de gestion',
+    'Finance comptabilite',
+    'Banque et assurance',
+    'Gestion de ressource humaine',
+    'Technique Commerciale et Marketing',
+    'Statistique appliquee a la economie'
+  ];
+  final List<String> annees = ['L1', 'L2', 'L3', 'M1', 'M2'];
+
   Future<void> _pickImage() async {
     final ImagePicker _picker = ImagePicker();
     final XFile? pickedImage = await _picker.pickImage(source: ImageSource.gallery);
-    setState(() {
-      _image = pickedImage;
-    });
+    if (pickedImage != null) {
+      setState(() {
+        _image = pickedImage;
+      });
+    }
   }
 
-  // Méthode pour choisir le fichier justificatif
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles();
     if (result != null) {
@@ -48,7 +57,6 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
     }
   }
 
-  // Sauvegarder les données de l'étudiant dans Firestore et naviguer vers ReceiptScreen
   Future<void> _registerStudent() async {
     // Validation des champs
     if (nameController.text.isEmpty) {
@@ -59,15 +67,18 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
       _showErrorDialog("Le prénom est requis");
       return;
     }
-    if (emailController.text.isEmpty || !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(emailController.text)) {
+    if (emailController.text.isEmpty ||
+        !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(emailController.text)) {
       _showErrorDialog("Veuillez entrer une adresse email valide");
       return;
     }
-    if (bacNumberController.text.isEmpty || !RegExp(r'^\d{5}$').hasMatch(bacNumberController.text)) {
+    if (bacNumberController.text.isEmpty ||
+        !RegExp(r'^\d{5}$').hasMatch(bacNumberController.text)) {
       _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
       return;
     }
-    if (nniController.text.isEmpty || !RegExp(r'^\d{10}$').hasMatch(nniController.text)) {
+    if (nniController.text.isEmpty ||
+        !RegExp(r'^\d{10}$').hasMatch(nniController.text)) {
       _showErrorDialog("Le numéro NNI doit contenir exactement 10 chiffres");
       return;
     }
@@ -86,8 +97,9 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
 
     try {
       // Télécharger l'image sur Firebase Storage
-      final Reference storageRef =
-          FirebaseStorage.instance.ref().child('student_photos/${_image!.name}');
+      final Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('student_photos/${_image!.name}');
       final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
       final TaskSnapshot downloadUrl = await uploadTask;
       final String imageUrl = await downloadUrl.ref.getDownloadURL();
@@ -102,9 +114,11 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
         'filiere': selectedFiliere,
         'annee': selectedAnnee,
         'photoUrl': imageUrl,
+        'montant': double.tryParse(montantController.text) ?? 0.0,
+        'payment': paymentController.text,
         'paymentStatus': _paymentMade ? 'Payé' : 'Non payé',
         'registrationDate': Timestamp.now(),
-        'type': 'nouveau', // Ajout du type d'étudiant
+        'type': 'nouveau',
       };
 
       await FirebaseFirestore.instance.collection('students').add(studentData);
@@ -131,7 +145,6 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
     }
   }
 
-  // Fonction pour afficher un alert dialog
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -154,19 +167,22 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height; // (non utilisé dans cet extrait)
+    final w = MediaQuery.of(context).size.width;  // (non utilisé dans cet extrait)
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inscription d\'un nouvel étudiant',
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold,color: Colors.white),
+        title: const Text(
+          'Inscription d\'un nouvel étudiant',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         elevation: 30,
         backgroundColor: Colors.teal,
       ),
       body: Container(
-        // Appliquer un background color ou un dégradé
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.blue, Colors.green], // Dégradé du bleu au vert
+            colors: [Colors.blue, Colors.green],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -184,13 +200,11 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 controller: nameController,
                 decoration: InputDecoration(
                   labelText: 'Nom',
-                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  labelStyle: const TextStyle(color: Colors.white),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15), // Coins arrondis
-                    borderSide: BorderSide(
-                      color: Colors.white, // Couleur de la bordure
-                      width: 2, // Épaisseur de la bordure
-                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Colors.white, width: 2),
                   ),
                 ),
               ),
@@ -199,13 +213,11 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 controller: lastNameController,
                 decoration: InputDecoration(
                   labelText: 'Prénom',
-                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  labelStyle: const TextStyle(color: Colors.white),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15), // Coins arrondis
-                    borderSide: BorderSide(
-                      color: Colors.white, // Couleur de la bordure
-                      width: 2, // Épaisseur de la bordure
-                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Colors.white, width: 2),
                   ),
                 ),
               ),
@@ -214,13 +226,11 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 controller: emailController,
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  labelStyle: const TextStyle(color: Colors.white),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15), // Coins arrondis
-                    borderSide: BorderSide(
-                      color: Colors.white, // Couleur de la bordure
-                      width: 2, // Épaisseur de la bordure
-                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Colors.white, width: 2),
                   ),
                 ),
                 keyboardType: TextInputType.emailAddress,
@@ -230,13 +240,11 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 controller: bacNumberController,
                 decoration: InputDecoration(
                   labelText: 'Numéro Bac',
-                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  labelStyle: const TextStyle(color: Colors.white),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15), // Coins arrondis
-                    borderSide: BorderSide(
-                      color: Colors.white, // Couleur de la bordure
-                      width: 2, // Épaisseur de la bordure
-                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Colors.white, width: 2),
                   ),
                 ),
                 keyboardType: TextInputType.number,
@@ -246,13 +254,31 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 controller: nniController,
                 decoration: InputDecoration(
                   labelText: 'Numéro NNI',
-                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  labelStyle: const TextStyle(color: Colors.white),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15), // Coins arrondis
-                    borderSide: BorderSide(
-                      color: Colors.white, // Couleur de la bordure
-                      width: 2, // Épaisseur de la bordure
-                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Colors.white, width: 2),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Informations académiques',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              
+              const SizedBox(height: 20),
+              TextField(
+                controller: montantController,
+                decoration: InputDecoration(
+                  labelText: 'Montant à payer',
+                  labelStyle: const TextStyle(color: Colors.white),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Colors.white, width: 2),
                   ),
                 ),
                 keyboardType: TextInputType.number,
@@ -273,13 +299,11 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 },
                 decoration: InputDecoration(
                   labelText: 'Filière',
-                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  labelStyle: const TextStyle(color: Colors.white),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15), // Coins arrondis
-                    borderSide: BorderSide(
-                      color: Colors.white, // Couleur de la bordure
-                      width: 2, // Épaisseur de la bordure
-                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Colors.white, width: 2),
                   ),
                 ),
               ),
@@ -299,13 +323,11 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 },
                 decoration: InputDecoration(
                   labelText: 'Année d\'étude',
-                  labelStyle: const TextStyle(color: Colors.white), // Couleur du label
+                  labelStyle: const TextStyle(color: Colors.white),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15), // Coins arrondis
-                    borderSide: BorderSide(
-                      color: Colors.white, // Couleur de la bordure
-                      width: 2, // Épaisseur de la bordure
-                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Colors.white, width: 2),
                   ),
                 ),
               ),
@@ -316,7 +338,10 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
               ),
               if (_image != null) ...[
                 const SizedBox(height: 10),
-                Text('Photo sélectionnée: ${_image!.name}', style: TextStyle(color: Colors.white)),
+                Text(
+                  'Photo sélectionnée: ${_image!.name}',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ],
               const SizedBox(height: 20),
               ElevatedButton(
@@ -324,7 +349,10 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 child: const Text('Choisir un fichier justificatif'),
               ),
               if (_filePath != null)
-                Text('Fichier sélectionné: $_filePath', style: TextStyle(color: Colors.white)),
+                Text(
+                  'Fichier sélectionné: $_filePath',
+                  style: const TextStyle(color: Colors.white),
+                ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _registerStudent,
@@ -337,3 +365,4 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
     );
   }
 }
+
