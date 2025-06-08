@@ -6,7 +6,9 @@ import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
 import 'package:gestion_scolarite/screens/RegistrationForm.dart';
 import 'package:gestion_scolarite/screens/AdminScreen.dart';
 import 'package:gestion_scolarite/screens/AdminDashboardScreen.dart';
-import 'package:gestion_scolarite/screens/home_screen.dart';  // Importer le fichier HomeScreen
+import 'package:gestion_scolarite/screens/home_screen.dart';
+import 'package:gestion_scolarite/screens/settings_screen.dart';
+import 'package:gestion_scolarite/screens/student_profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,14 +27,22 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      initialRoute: '/',
+      initialRoute: '/login',
       routes: {
-        '/': (context) => const HomeScreen(),  // Utiliser HomeScreen depuis le fichier séparé
+        '/': (context) => const LoginRegisterScreen(),
         '/admin': (context) => const AdminScreen(),
         '/admin-dashboard': (context) => const AdminDashboardScreen(),
         '/inscription': (context) => const RegistrationScreen(),
-        '/login': (context) => const LoginRegisterScreen(),
         '/home': (context) => const HomePage(),
+        '/settings': (context) => const SettingsScreen(),
+        '/student-profile': (context) => const StudentProfileScreen(),
+        '/receipt': (context) => const ReceiptScreen(
+          name: '',
+          lastName: '',
+          filiere: '',
+          annee: '',
+          montant: 0.0,
+        ),
       },
     );
   }

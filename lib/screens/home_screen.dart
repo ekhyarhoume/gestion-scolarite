@@ -1,10 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
-  void _navigateTo(BuildContext context, String routeName) {
-    Navigator.pushNamed(context, routeName);
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+
+  void _onNavTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    
+    switch (index) {
+      case 0:
+        // Already on home screen
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/receipt');
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/settings');
+        break;
+    }
   }
 
   @override
@@ -55,7 +77,7 @@ class HomeScreen extends StatelessWidget {
                           backgroundColor: const Color.fromARGB(255, 76, 175, 162),
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => _navigateTo(context, '/home'),
+                        onPressed: () => Navigator.pushNamed(context, '/home'),
                         child: const Center(child: Text('Inscription Étudiante')),
                       ),
                       ElevatedButton(
@@ -63,7 +85,7 @@ class HomeScreen extends StatelessWidget {
                           backgroundColor: const Color.fromARGB(255, 76, 175, 145),
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => _navigateTo(context, '/admin-dashboard'),
+                        onPressed: () => Navigator.pushNamed(context, '/admin-dashboard'),
                         child: const Center(child: Text('dashboard ')),
                       ),
                       ElevatedButton(
@@ -71,7 +93,7 @@ class HomeScreen extends StatelessWidget {
                           backgroundColor: const Color.fromARGB(255, 76, 175, 162),
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => _navigateTo(context, '/interface3'),
+                        onPressed: () => Navigator.pushNamed(context, '/interface3'),
                         child: const Center(child: Text('Reçu d\'inscription')),
                       ),
                       ElevatedButton(
@@ -79,7 +101,7 @@ class HomeScreen extends StatelessWidget {
                           backgroundColor: const Color.fromARGB(255, 76, 175, 162),
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => _navigateTo(context, '/login'),
+                        onPressed: () => Navigator.pushNamed(context, '/login'),
                         child: const Center(child: Text('login du register')),
                       ),
                     ],
@@ -97,6 +119,10 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onNavTap,
       ),
     );
   }

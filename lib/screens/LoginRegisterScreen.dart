@@ -57,7 +57,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         password: _controllerPassword.text,
       );
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, '/');
       }
     } on FirebaseAuthException catch (e) {
       String message;
@@ -107,7 +107,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         password: _controllerPassword.text,
       );
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, '/');
       }
     } on FirebaseAuthException catch (e) {
       String message;

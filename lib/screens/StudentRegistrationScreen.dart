@@ -1,9 +1,9 @@
-
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
+import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -27,6 +27,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   XFile? _image;
   String? _filePath;
   bool _paymentMade = false;
+  int _currentIndex = 0;
 
   final List<String> filieres = [
     'Informatique de gestion',
@@ -165,10 +166,28 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
     );
   }
 
+  void _onNavTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    
+    switch (index) {
+      case 0:
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/receipt');
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/settings');
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final h = MediaQuery.of(context).size.height; // (non utilisé dans cet extrait)
-    final w = MediaQuery.of(context).size.width;  // (non utilisé dans cet extrait)
+    final h = MediaQuery.of(context).size.height;
+    final w = MediaQuery.of(context).size.width;
 
     return Scaffold(
       appBar: AppBar(
@@ -180,7 +199,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
         backgroundColor: Colors.teal,
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Colors.blue, Colors.green],
             begin: Alignment.topLeft,
@@ -361,6 +380,10 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onNavTap,
       ),
     );
   }
