@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:gestion_scolarite/services/local_storage_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -69,7 +69,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Future<void> _updateStudentPhoto(String studentId, String currentPhotoUrl) async {
+  Future<void> _updateStudentPhoto(String studentId, String currentPhotoPath) async {
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
@@ -79,7 +79,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       if (image == null) return;
 
-      // Afficher un indicateur de chargement
+      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -90,51 +90,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         },
       );
 
-      // Supprimer l'ancienne photo si elle existe
-      if (currentPhotoUrl.isNotEmpty) {
-        try {
-          final oldPhotoRef = FirebaseStorage.instance.refFromURL(currentPhotoUrl);
-          await oldPhotoRef.delete();
-        } catch (e) {
-          print('Erreur lors de la suppression de l\'ancienne photo: $e');
-        }
+      // Delete old photo if it exists
+      if (currentPhotoPath.isNotEmpty) {
+        await LocalStorageService.deleteImage(currentPhotoPath);
       }
 
-      // Télécharger la nouvelle photo
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('student_photos/${DateTime.now().millisecondsSinceEpoch}_${image.name}');
-      
-      final uploadTask = storageRef.putFile(File(image.path));
-      final snapshot = await uploadTask;
-      final newPhotoUrl = await snapshot.ref.getDownloadURL();
+      // Save new photo locally
+      final String newPhotoPath = await LocalStorageService.saveImage(
+        File(image.path),
+        image.name,
+      );
 
-      // Mettre à jour l'URL de la photo dans Firestore
+      // Update photo path in Firestore
       await FirebaseFirestore.instance
           .collection('students')
           .doc(studentId)
           .update({
-        'photoUrl': newPhotoUrl,
+        'photoPath': newPhotoPath,
         'photoUpdatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Fermer l'indicateur de chargement
+      // Close loading indicator
       Navigator.pop(context);
 
-      // Afficher un message de succès
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Photo de profil mise à jour avec succès'),
+          content: Text('Profile photo updated successfully'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      // Fermer l'indicateur de chargement en cas d'erreur
-      Navigator.pop(context);
+      // Close loading indicator if it's showing
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur lors de la mise à jour de la photo: $e'),
+          content: Text('Error updating profile photo: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -152,7 +146,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const Text('Détails de l\'étudiant'),
               IconButton(
                 icon: const Icon(Icons.edit),
-                onPressed: () => _updateStudentPhoto(studentId, studentData['photoUrl'] ?? ''),
+                onPressed: () => _updateStudentPhoto(studentId, studentData['photoPath'] ?? ''),
                 tooltip: 'Modifier la photo',
               ),
             ],
@@ -167,10 +161,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: studentData['photoUrl'] != null
-                            ? NetworkImage(studentData['photoUrl'])
+                        backgroundImage: studentData['photoPath'] != null
+                            ? NetworkImage(studentData['photoPath'])
                             : null,
-                        child: studentData['photoUrl'] == null
+                        child: studentData['photoPath'] == null
                             ? const Icon(Icons.person, size: 50)
                             : null,
                       ),
@@ -185,7 +179,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                           child: IconButton(
                             icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                            onPressed: () => _updateStudentPhoto(studentId, studentData['photoUrl'] ?? ''),
+                            onPressed: () => _updateStudentPhoto(studentId, studentData['photoPath'] ?? ''),
                           ),
                         ),
                       ),
@@ -324,10 +318,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         color: Colors.white.withOpacity(0.2),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundImage: data['photoUrl'] != null
-                                ? NetworkImage(data['photoUrl'])
+                            backgroundImage: data['photoPath'] != null
+                                ? NetworkImage(data['photoPath'])
                                 : null,
-                            child: data['photoUrl'] == null
+                            child: data['photoPath'] == null
                                 ? const Icon(Icons.person)
                                 : null,
                           ),

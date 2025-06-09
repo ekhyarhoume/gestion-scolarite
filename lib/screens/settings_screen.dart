@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:gestion_scolarite/services/local_storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -15,7 +15,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   int _currentIndex = 2;
-  String? _profilePhotoUrl;
+  String? _photoPath;
   bool _isLoading = false;
 
   @override
@@ -33,14 +33,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             .doc(user.uid)
             .get();
         
-        if (doc.exists && doc.data()?['photoUrl'] != null) {
+        if (doc.exists && doc.data()?['photoPath'] != null) {
           setState(() {
-            _profilePhotoUrl = doc.data()?['photoUrl'];
+            _photoPath = doc.data()?['photoPath'];
           });
         }
       }
     } catch (e) {
-      print('Erreur lors du chargement de la photo: $e');
+      print('Error loading profile photo: $e');
     }
   }
 
@@ -59,44 +59,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
 
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Utilisateur non connecté');
+      if (user == null) throw Exception('User not logged in');
 
-      // Supprimer l'ancienne photo si elle existe
-      if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty) {
-        try {
-          final oldPhotoRef = FirebaseStorage.instance.refFromURL(_profilePhotoUrl!);
-          await oldPhotoRef.delete();
-        } catch (e) {
-          print('Erreur lors de la suppression de l\'ancienne photo: $e');
-        }
+      // Delete old photo if it exists
+      if (_photoPath != null && _photoPath!.isNotEmpty) {
+        await LocalStorageService.deleteImage(_photoPath!);
       }
 
-      // Télécharger la nouvelle photo
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('admin_photos/${user.uid}_${DateTime.now().millisecondsSinceEpoch}');
-      
-      final uploadTask = storageRef.putFile(File(image.path));
-      final snapshot = await uploadTask;
-      final newPhotoUrl = await snapshot.ref.getDownloadURL();
+      // Save new photo locally
+      final String newPhotoPath = await LocalStorageService.saveImage(
+        File(image.path),
+        image.name,
+      );
 
-      // Mettre à jour l'URL de la photo dans Firestore
+      // Update photo path in Firestore
       await FirebaseFirestore.instance
           .collection('admins')
           .doc(user.uid)
           .update({
-        'photoUrl': newPhotoUrl,
+        'photoPath': newPhotoPath,
         'photoUpdatedAt': FieldValue.serverTimestamp(),
       });
 
       setState(() {
-        _profilePhotoUrl = newPhotoUrl;
+        _photoPath = newPhotoPath;
         _isLoading = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Photo de profil mise à jour avec succès'),
+          content: Text('Profile photo updated successfully'),
           backgroundColor: Colors.green,
         ),
       );
@@ -107,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erreur lors de la mise à jour de la photo: $e'),
+          content: Text('Error updating profile photo: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -136,162 +128,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Paramètres',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF395D5D),
-        elevation: 30,
+        title: const Text('Settings'),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue, Colors.green],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with profile info
-              Center(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator()
-                          : CircleAvatar(
-                              radius: 50,
-                              backgroundImage: _profilePhotoUrl != null
-                                  ? NetworkImage(_profilePhotoUrl!)
-                                  : null,
-                              child: _profilePhotoUrl == null
-                                  ? const Icon(Icons.person, size: 50, color: Colors.white)
-                                  : null,
-                            ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Stack(
+                    children: [
+                      Container(
                         decoration: BoxDecoration(
-                          color: Colors.teal,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: Colors.white, width: 3),
                         ),
-                        child: IconButton(
-                          icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          onPressed: _isLoading ? null : _updateProfilePhoto,
-                          tooltip: 'Modifier la photo de profil',
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundImage: _photoPath != null
+                              ? FileImage(File(_photoPath!))
+                              : null,
+                          child: _photoPath == null
+                              ? const Icon(Icons.person, size: 60, color: Colors.white)
+                              : null,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Center(
-                child: Text(
-                  'Profil Administrateur',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.teal,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                            onPressed: _updateProfilePhoto,
+                            tooltip: 'Update profile photo',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 30),
-
-              // Contact Info
-              Card(
-                color: Colors.white.withOpacity(0.2),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.phone, color: Colors.white),
-                      title: const Text(
-                        '+22231676691',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        onPressed: () {
-                          // TODO: Implement edit phone functionality
-                        },
-                      ),
-                    ),
-                    const Divider(color: Colors.white),
-                    ListTile(
-                      leading: const Icon(Icons.email, color: Colors.white),
-                      title: const Text(
-                        'iscae.mr@gmail.com',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        onPressed: () {
-                          // TODO: Implement edit email functionality
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Additional Settings
-              Card(
-                color: Colors.white.withOpacity(0.2),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.language, color: Colors.white),
-                      title: const Text(
-                        'Langue',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white),
-                      onTap: () {
-                        // TODO: Implement language selection
-                      },
-                    ),
-                    const Divider(color: Colors.white),
-                    ListTile(
-                      leading: const Icon(Icons.logout, color: Colors.white),
-                      title: const Text(
-                        'Déconnexion',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      onTap: () async {
-                        try {
-                          await FirebaseAuth.instance.signOut();
-                          Navigator.pushReplacementNamed(context, '/login');
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Erreur lors de la déconnexion: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: CustomBottomNavBar(
+            ),
+      bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
         onTap: _onNavTap,
       ),
