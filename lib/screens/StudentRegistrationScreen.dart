@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
 import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:gestion_scolarite/services/local_storage_service.dart';
 
 class StudentRegistrationScreen extends StatefulWidget {
   const StudentRegistrationScreen({Key? key}) : super(key: key);
@@ -59,53 +59,26 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   }
 
   Future<void> _registerStudent() async {
-    // Validation des champs
-    if (nameController.text.isEmpty) {
-      _showErrorDialog("Le nom est requis");
-      return;
-    }
-    if (lastNameController.text.isEmpty) {
-      _showErrorDialog("Le prénom est requis");
-      return;
-    }
-    if (emailController.text.isEmpty ||
-        !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(emailController.text)) {
-      _showErrorDialog("Veuillez entrer une adresse email valide");
-      return;
-    }
-    if (bacNumberController.text.isEmpty ||
-        !RegExp(r'^\d{5}$').hasMatch(bacNumberController.text)) {
-      _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
-      return;
-    }
-    if (nniController.text.isEmpty ||
-        !RegExp(r'^\d{10}$').hasMatch(nniController.text)) {
-      _showErrorDialog("Le numéro NNI doit contenir exactement 10 chiffres");
-      return;
-    }
-    if (selectedFiliere == null) {
-      _showErrorDialog("Veuillez sélectionner une filière");
-      return;
-    }
-    if (selectedAnnee == null) {
-      _showErrorDialog("Veuillez sélectionner une année d'étude");
-      return;
-    }
-    if (_image == null) {
-      _showErrorDialog("Veuillez choisir une photo");
+    if (nameController.text.isEmpty ||
+        lastNameController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        bacNumberController.text.isEmpty ||
+        nniController.text.isEmpty ||
+        selectedFiliere == null ||
+        selectedAnnee == null ||
+        _image == null) {
+      _showErrorDialog("Veuillez remplir tous les champs obligatoires");
       return;
     }
 
     try {
-      // Télécharger l'image sur Firebase Storage
-      final Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('student_photos/${_image!.name}');
-      final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
-      final TaskSnapshot downloadUrl = await uploadTask;
-      final String imageUrl = await downloadUrl.ref.getDownloadURL();
+      // Save image locally
+      final String imagePath = await LocalStorageService.saveImage(
+        File(_image!.path),
+        _image!.name,
+      );
 
-      // Sauvegarder les données de l'étudiant dans Firestore
+      // Save student data to Firestore
       final studentData = {
         'name': nameController.text,
         'lastName': lastNameController.text,
@@ -114,7 +87,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
         'nni': nniController.text,
         'filiere': selectedFiliere,
         'annee': selectedAnnee,
-        'photoUrl': imageUrl,
+        'photoPath': imagePath,  // Store local path instead of URL
         'montant': double.tryParse(montantController.text) ?? 0.0,
         'payment': paymentController.text,
         'paymentStatus': _paymentMade ? 'Payé' : 'Non payé',
@@ -128,7 +101,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
         const SnackBar(content: Text('Inscription réussie !')),
       );
 
-      // Naviguer vers le ReceiptScreen après inscription réussie
+      // Navigate to ReceiptScreen after successful registration
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -149,20 +122,16 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Erreur"),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("OK"),
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Erreur'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
