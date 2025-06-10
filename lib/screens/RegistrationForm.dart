@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
@@ -30,7 +31,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   bool _paymentSuccessful = false;
   String _registrationStatus = "En cours"; // Statut initial de l'inscription
-
+    int _currentIndex = 0;
   // Méthode pour choisir la photo
   Future<void> _pickImage() async {
     final ImagePicker _picker = ImagePicker();
@@ -152,6 +153,23 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         );
       },
     );
+  }
+   void _onNavTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    
+    switch (index) {
+      case 0:
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/receipt');
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/settings');
+        break;
+    }
   }
 
   @override
@@ -380,6 +398,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onNavTap,
       ),
     );
   }

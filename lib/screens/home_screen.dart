@@ -77,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           backgroundColor: const Color.fromARGB(255, 76, 175, 162),
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => Navigator.pushNamed(context, '/home'),
+                        onPressed: () => Navigator.pushNamed(context, '/home-page'),
                         child: const Center(child: Text('Inscription Étudiante')),
                       ),
                       ElevatedButton(

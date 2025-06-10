@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:gestion_scolarite/pages/HomePage.dart';
 import 'package:gestion_scolarite/screens/LoginRegisterScreen.dart';
@@ -13,6 +14,13 @@ import 'package:gestion_scolarite/screens/student_profile_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  
+  // Configuration du thème système
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+  ));
+  
   runApp(const MyApp());
 }
 
@@ -23,17 +31,38 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Inscription Étudiante',
+      title: 'Gestion de Scolarité',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          centerTitle: true,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
       ),
-      initialRoute: '/login',
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+          child: SafeArea(child: child!),
+        );
+      },
+      initialRoute: '/',
       routes: {
         '/': (context) => const LoginRegisterScreen(),
         '/admin': (context) => const AdminScreen(),
         '/admin-dashboard': (context) => const AdminDashboardScreen(),
         '/inscription': (context) => const RegistrationScreen(),
-        '/home': (context) => const HomePage(),
+        '/home': (context) => const HomeScreen(),
+        '/home-page': (context) => const HomePage(),
         '/settings': (context) => const SettingsScreen(),
         '/student-profile': (context) => const StudentProfileScreen(),
         '/receipt': (context) => const ReceiptScreen(
