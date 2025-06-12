@@ -175,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: BottomNavBar(
+      bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _currentIndex,
         onTap: _onNavTap,
       ),
