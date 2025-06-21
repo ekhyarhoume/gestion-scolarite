@@ -1,10 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:gestion_scolarite/main.dart';
 //import 'home_screen.dart';  // L'écran d'accueil ou administrateur après connexion
 import 'package:gestion_scolarite/constants/iamges_paths.dart';
-import 'package:gestion_scolarite/models/auth.dart';
 import 'package:gestion_scolarite/screens/home_screen.dart';
+import 'package:gestion_scolarite/services/sqlite_service.dart';
+import 'package:gestion_scolarite/models/student.dart';
 
 class LoginRegisterScreen extends StatefulWidget {
   const LoginRegisterScreen({super.key});
@@ -16,127 +15,81 @@ class LoginRegisterScreen extends StatefulWidget {
 class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   String? errorMessage = '';
   bool isLogin = true;
-  bool _isObscured = true;
   bool _isLoading = false;
+  bool _isNewStudentRegistration = true; // Pour basculer entre BAC et Matricule
 
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _controllerEmail = TextEditingController();
-  final TextEditingController _controllerPassword = TextEditingController();
+  final TextEditingController _studentIdController = TextEditingController();
+  final TextEditingController _bacNumberController = TextEditingController();
+  final TextEditingController _matriculeController = TextEditingController();
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer votre email';
+  Future<void> _loginWithStudentId() async {
+    if (_studentIdController.text.isEmpty) {
+      setState(() { errorMessage = 'Veuillez entrer votre numéro d\'étudiant'; });
+      return;
     }
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-      return 'Veuillez entrer un email valide';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Veuillez entrer votre mot de passe';
-    }
-    if (value.length < 6) {
-      return 'Le mot de passe doit contenir au moins 6 caractères';
-    }
-    return null;
-  }
-
-  Future<void> signInWithEmailAndPassword() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-      errorMessage = '';
-    });
-
+    setState(() { _isLoading = true; errorMessage = ''; });
     try {
-      await Auth().signInWithEmailAndPassword(
-        email: _controllerEmail.text.trim(),
-        password: _controllerPassword.text,
-      );
-      if (mounted) {
+      final student = await SQLiteService().getStudentById(_studentIdController.text.trim());
+      if (student != null) {
         Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        setState(() { errorMessage = 'Aucun étudiant trouvé avec ce numéro'; });
       }
-    } on FirebaseAuthException catch (e) {
-      String message;
-      switch (e.code) {
-        case 'user-not-found':
-          message = 'Aucun utilisateur trouvé avec cet email';
-          break;
-        case 'wrong-password':
-          message = 'Mot de passe incorrect';
-          break;
-        case 'invalid-email':
-          message = 'Email invalide';
-          break;
-        case 'user-disabled':
-          message = 'Ce compte a été désactivé';
-          break;
-        default:
-          message = 'Une erreur est survenue: ${e.message}';
-      }
-      setState(() {
-        errorMessage = message;
-      });
     } catch (e) {
-      setState(() {
-        errorMessage = 'Une erreur inattendue est survenue';
-      });
+      setState(() { errorMessage = e.toString(); });
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() { _isLoading = false; });
     }
   }
 
-  Future<void> createUserWithEmailAndPassword() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _handleRegistrationVerification() async {
+    if (_isNewStudentRegistration) {
+      await _registerWithBacNumber();
+    } else {
+      await _verifyOldStudent();
+    }
+  }
 
-    setState(() {
-      _isLoading = true;
-      errorMessage = '';
-    });
-
+  Future<void> _registerWithBacNumber() async {
+    if (_bacNumberController.text.isEmpty) {
+      setState(() { errorMessage = 'Veuillez entrer votre numéro de BAC'; });
+      return;
+    }
+    setState(() { _isLoading = true; errorMessage = ''; });
     try {
-      await Auth().createUserWithEmailAndPassword(
-        email: _controllerEmail.text.trim(),
-        password: _controllerPassword.text,
-      );
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/home');
+      final student = await SQLiteService().getStudentByBac(_bacNumberController.text.trim());
+      if (student != null) {
+        setState(() { errorMessage = 'Un étudiant avec ce numéro de BAC existe déjà.'; });
+      } else {
+        Navigator.pushReplacementNamed(context, '/inscription');
       }
-    } on FirebaseAuthException catch (e) {
-      String message;
-      switch (e.code) {
-        case 'weak-password':
-          message = 'Le mot de passe est trop faible';
-          break;
-        case 'email-already-in-use':
-          message = 'Un compte existe déjà avec cet email';
-          break;
-        case 'invalid-email':
-          message = 'Email invalide';
-          break;
-        default:
-          message = 'Une erreur est survenue: ${e.message}';
-      }
-      setState(() {
-        errorMessage = message;
-      });
     } catch (e) {
-      setState(() {
-        errorMessage = 'Une erreur inattendue est survenue';
-      });
+      setState(() { errorMessage = e.toString(); });
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      setState(() { _isLoading = false; });
+    }
+  }
+
+  Future<void> _verifyOldStudent() async {
+    if (_matriculeController.text.isEmpty) {
+      setState(() { errorMessage = 'Veuillez entrer votre matricule'; });
+      return;
+    }
+    setState(() { _isLoading = true; errorMessage = ''; });
+    try {
+      final student = await SQLiteService().getStudentById(_matriculeController.text.trim());
+      if (student != null) {
+        setState(() { errorMessage = 'Un compte pour ce matricule existe déjà. Veuillez vous connecter.'; });
+      } else {
+        // Si l'étudiant n'est pas trouvé par matricule, peut-être qu'il devrait s'inscrire normalement.
+        // Ou afficher un message que le matricule n'est pas reconnu.
+        setState(() { errorMessage = 'Matricule non reconnu. Veuillez vérifier ou vous inscrire comme nouvel étudiant.'; });
       }
+    } catch (e) {
+      setState(() { errorMessage = e.toString(); });
+    } finally {
+      setState(() { _isLoading = false; });
     }
   }
 
@@ -156,7 +109,9 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
 
   Widget _submitButton() {
     return ElevatedButton(
-      onPressed: _isLoading ? null : (isLogin ? signInWithEmailAndPassword : createUserWithEmailAndPassword),
+      onPressed: _isLoading
+          ? null
+          : (isLogin ? _loginWithStudentId : _handleRegistrationVerification),
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color.fromARGB(255, 210, 10, 255),
         padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 50),
@@ -174,7 +129,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
               ),
             )
           : Text(
-              isLogin ? 'Connexion' : 'Inscription',
+              isLogin ? 'Connexion' : 'Vérifier',
               style: const TextStyle(color: Colors.white, fontSize: 24),
             ),
     );
@@ -185,6 +140,9 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
       onPressed: () {
         setState(() {
           isLogin = !isLogin;
+          errorMessage = '';
+          // Réinitialiser le type d'inscription lors du basculement
+          _isNewStudentRegistration = true;
         });
       },
       style: ElevatedButton.styleFrom(
@@ -195,9 +153,42 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         ),
       ),
       child: Text(
-        isLogin ? "Register" : "Login",
-        style: TextStyle(color: Colors.black, fontSize: 24),
+        isLogin ? "Je suis un nouveau étudiant" : "J'ai déjà un compte",
+        style: const TextStyle(color: Colors.black, fontSize: 20),
       ),
+    );
+  }
+
+  Widget _buildRegistrationTypeToggle() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ChoiceChip(
+          label: Text('Nouveau'),
+          selected: _isNewStudentRegistration,
+          onSelected: (selected) {
+            if (selected) {
+              setState(() {
+                _isNewStudentRegistration = true;
+                errorMessage = '';
+              });
+            }
+          },
+        ),
+        SizedBox(width: 10),
+        ChoiceChip(
+          label: Text('Ancien'),
+          selected: !_isNewStudentRegistration,
+          onSelected: (selected) {
+            if (selected) {
+              setState(() {
+                _isNewStudentRegistration = false;
+                errorMessage = '';
+              });
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -237,60 +228,76 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                     padding: EdgeInsets.fromLTRB(w * .1, h * .01, w * .1, h * .01),
                     child: Column(
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 20),
-                          child: TextFormField(
-                            controller: _controllerEmail,
-                            validator: _validateEmail,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: const Color(0x3900FF37),
-                              hintText: "Email",
-                              hintStyle: const TextStyle(color: Color(0xFF717171)),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.person_sharp,
-                                color: Color.fromARGB(255, 159, 159, 159),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 20),
-                          child: TextFormField(
-                            obscureText: _isObscured,
-                            controller: _controllerPassword,
-                            validator: _validatePassword,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: const Color(0x3900FF37),
-                              hintText: "Mot de passe",
-                              hintStyle: const TextStyle(color: Color(0xFF717171)),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.lock,
-                                color: Color.fromARGB(255, 159, 159, 159),
-                              ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _isObscured ? Icons.visibility_off : Icons.visibility,
+                        if (isLogin) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(top: 20),
+                            child: TextFormField(
+                              controller: _studentIdController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: const Color(0x3900FF37),
+                                hintText: "Numéro d'étudiant",
+                                hintStyle: const TextStyle(color: Color(0xFF717171)),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                  borderSide: BorderSide.none,
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _isObscured = !_isObscured;
-                                  });
-                                },
+                                prefixIcon: const Icon(
+                                  Icons.person_sharp,
+                                  color: Color.fromARGB(255, 159, 159, 159),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ] else ...[
+                          _buildRegistrationTypeToggle(),
+                          SizedBox(height: 15),
+                          if (_isNewStudentRegistration)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: TextFormField(
+                                controller: _bacNumberController,
+                                keyboardType: TextInputType.text,
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: const Color(0x3900FF37),
+                                  hintText: "Numéro de BAC",
+                                  hintStyle: const TextStyle(color: Color(0xFF717171)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.school,
+                                    color: Color.fromARGB(255, 159, 159, 159),
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: TextFormField(
+                                controller: _matriculeController,
+                                keyboardType: TextInputType.text,
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: const Color(0x3900FF37),
+                                  hintText: "Matricule",
+                                  hintStyle: const TextStyle(color: Color(0xFF717171)),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.person_pin,
+                                    color: Color.fromARGB(255, 159, 159, 159),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                         _errorMessage(),
                         _submitButton(),
                         const SizedBox(height: 10),

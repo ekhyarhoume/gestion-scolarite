@@ -9,6 +9,8 @@ class ReceiptScreen extends StatelessWidget {
   final String filiere;
   final String annee;
   final double montant;
+  final String studentId;
+  final String createdAt;
 
   const ReceiptScreen({
     Key? key,
@@ -17,7 +19,18 @@ class ReceiptScreen extends StatelessWidget {
     required this.filiere,
     required this.annee,
     required this.montant,
+    required this.studentId,
+    required this.createdAt,
   }) : super(key: key);
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return date.toLocal().toString().split('.')[0]; // Remove milliseconds
+    } catch (e) {
+      return 'Date non disponible';
+    }
+  }
 
   Future<void> _printReceipt() async {
     final pdf = pw.Document();
@@ -35,14 +48,18 @@ class ReceiptScreen extends StatelessWidget {
                     style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
               ),
               pw.SizedBox(height: 20),
+              pw.Text('Numéro d\'étudiant: $studentId', style: pw.TextStyle(fontSize: 16)),
+              pw.SizedBox(height: 10),
               pw.Text('Nom: $name $lastName', style: pw.TextStyle(fontSize: 18)),
               pw.Text('Filière: $filiere', style: pw.TextStyle(fontSize: 18)),
               pw.Text('Année d\'étude: $annee', style: pw.TextStyle(fontSize: 18)),
               pw.SizedBox(height: 20),
-              pw.Text('Montant payé: $montant MRU', style: pw.TextStyle(fontSize: 18)),
+              pw.Text('Montant payé: $montant MRU', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 20),
-              pw.Text('Date de paiement: ${DateTime.now().toLocal()}',
-                  style: pw.TextStyle(fontSize: 18)),
+              pw.Text('Date d\'inscription: ${_formatDate(createdAt)}',
+                  style: pw.TextStyle(fontSize: 16)),
+              pw.Text('Date de génération: ${DateTime.now().toLocal().toString().split('.')[0]}',
+                  style: pw.TextStyle(fontSize: 16)),
             ],
           );
         },
@@ -77,18 +94,24 @@ class ReceiptScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            Text('Numéro d\'étudiant: $studentId', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 10),
             Text('Nom: $name $lastName', style: TextStyle(fontSize: 18)),
             Text('Filière: $filiere', style: TextStyle(fontSize: 18)),
             Text('Année d\'étude: $annee', style: TextStyle(fontSize: 18)),
             const SizedBox(height: 20),
-            Text('Montant payé: $montant MRU', style: TextStyle(fontSize: 18)),
+            Text('Montant payé: $montant MRU', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            Text('Date de paiement: ${DateTime.now().toLocal()}',
-                style: TextStyle(fontSize: 18)),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _printReceipt,
-              child: const Text('Imprimer le reçu'),
+            Text('Date d\'inscription: ${_formatDate(createdAt)}',
+                style: TextStyle(fontSize: 16)),
+            Text('Date de génération: ${DateTime.now().toLocal().toString().split('.')[0]}',
+                style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 30),
+            Center(
+              child: ElevatedButton(
+                onPressed: _printReceipt,
+                child: const Text('Imprimer le reçu'),
+              ),
             ),
           ],
         ),

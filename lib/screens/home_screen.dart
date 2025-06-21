@@ -46,6 +46,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         elevation: 20,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.pushNamed(context, '/settings');
+            },
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -82,27 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 76, 175, 145),
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => Navigator.pushNamed(context, '/admin-dashboard'),
-                        child: const Center(child: Text('dashboard ')),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
                           backgroundColor: const Color.fromARGB(255, 76, 175, 162),
                           foregroundColor: Colors.white,
                         ),
                         onPressed: () => Navigator.pushNamed(context, '/interface3'),
                         child: const Center(child: Text('Reçu d\'inscription')),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 76, 175, 162),
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => Navigator.pushNamed(context, '/login'),
-                        child: const Center(child: Text('login du register')),
                       ),
                     ],
                   ),

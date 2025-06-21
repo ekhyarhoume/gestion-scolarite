@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
+// This service is only for local image storage. Student data is managed by SQLiteService.
 class LocalStorageService {
   static Future<String> saveImage(File imageFile, String fileName) async {
     try {

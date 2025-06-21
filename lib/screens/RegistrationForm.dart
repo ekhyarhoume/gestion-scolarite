@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
+import 'package:gestion_scolarite/services/sqlite_service.dart';
+import 'package:gestion_scolarite/models/student.dart';
+import 'package:gestion_scolarite/services/local_storage_service.dart';
+import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({Key? key}) : super(key: key);
@@ -65,12 +66,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _showErrorDialog("Le CIN doit contenir exactement 10 chiffres");
       return;
     }
-    if (phoneController.text.isEmpty || !RegExp(r'^\d{5}$').hasMatch(phoneController.text)) {
-      _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
-      return;
-    }
-    if (studentNumberController.text.isEmpty || !RegExp(r'^\d{8}$').hasMatch(studentNumberController.text)) {
-      _showErrorDialog("Le numéro d'étudiant doit contenir exactement 8 chiffres");
+    // if (phoneController.text.isEmpty || !RegExp(r'^\d{5}$').hasMatch(phoneController.text)) {
+    //   _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
+    //   return;
+    // }
+    if (studentNumberController.text.isEmpty || !RegExp(r'^\d{5}$').hasMatch(studentNumberController.text)) {
+      _showErrorDialog("Le numéro d'étudiant doit contenir exactement 5 chiffres");
       return;
     }
     if (selectedFiliere == null) {
@@ -87,36 +88,31 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
 
     try {
-      // Télécharger l'image sur Firebase Storage
-      final Reference storageRef =
-          FirebaseStorage.instance.ref().child('student_photos/${_image!.name}');
-      final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
-      final TaskSnapshot downloadUrl = await uploadTask;
-      final String imageUrl = await downloadUrl.ref.getDownloadURL();
-
-      // Sauvegarder les données de l'étudiant dans Firestore
-      final studentData = {
-        'name': nameController.text,
-        'lastName': lastNameController.text,
-        'email': phoneController.text,
-        'bacNumber': phoneController.text,
-        'nni': cinController.text,
-        'studentNumber': studentNumberController.text,
-        'filiere': selectedFiliere,
-        'photoUrl': imageUrl,
-        'montant': double.parse(montantController.text),  // Utiliser le montant saisi
-        'paymentStatus': _paymentSuccessful ? 'Payé' : 'Non payé',
-        'registrationDate': Timestamp.now(),
-        'type': 'ancien',
-      };
-
-      await FirebaseFirestore.instance.collection('students').add(studentData);
-
+      // Save image locally
+      final String imagePath = await LocalStorageService.saveImage(
+        File(_image!.path),
+        _image!.name,
+      );
+      // Create a new Student object
+      final student = Student(
+        name: nameController.text,
+        lastName: lastNameController.text,
+        studentId: studentNumberController.text,
+        bacNumber: phoneController.text,
+        email: phoneController.text, // or use a separate email field if needed
+        phone: phoneController.text,
+        filiere: selectedFiliere!,
+        annee: selectedAnnee!,
+        photoPath: imagePath,
+        montant: double.parse(montantController.text),
+        paymentStatus: _paymentSuccessful ? 'Payé' : 'Non payé',
+        createdAt: DateTime.now().toIso8601String(),
+      );
+      await SQLiteService().insertStudent(student);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Inscription réussie !')),
       );
-
-      // Naviguer vers le ReceiptScreen après inscription réussie
+      // Navigate to ReceiptScreen after successful registration
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -124,13 +120,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             name: nameController.text,
             lastName: lastNameController.text,
             filiere: selectedFiliere!,
-            annee: selectedAnnee ?? 'Non spécifiée',
+            annee: selectedAnnee!,
             montant: double.parse(montantController.text),
+            studentId: studentNumberController.text,
+            createdAt: DateTime.now().toIso8601String(),
           ),
         ),
       );
     } catch (e) {
-      _showErrorDialog("Une erreur est survenue lors de l'inscription: ${e.toString()}");
+      _showErrorDialog("Une erreur est survenue lors de l'inscription: "+e.toString());
     }
   }
 

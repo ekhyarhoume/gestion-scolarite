@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gestion_scolarite/services/local_storage_service.dart';
+import 'package:provider/provider.dart';
+import 'package:gestion_scolarite/providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -25,23 +25,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadProfilePhoto() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final doc = await FirebaseFirestore.instance
-            .collection('admins')
-            .doc(user.uid)
-            .get();
-        
-        if (doc.exists && doc.data()?['photoPath'] != null) {
-          setState(() {
-            _photoPath = doc.data()?['photoPath'];
-          });
-        }
-      }
-    } catch (e) {
-      print('Error loading profile photo: $e');
-    }
+    // Load photo from local storage if needed
+    // For now, just keep the path if already set
+    setState(() {});
   }
 
   Future<void> _updateProfilePhoto() async {
@@ -51,55 +37,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
         source: ImageSource.gallery,
         imageQuality: 70,
       );
-
       if (image == null) return;
-
-      setState(() {
-        _isLoading = true;
-      });
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not logged in');
-
-      // Delete old photo if it exists
-      if (_photoPath != null && _photoPath!.isNotEmpty) {
-        await LocalStorageService.deleteImage(_photoPath!);
-      }
-
+      setState(() { _isLoading = true; });
       // Save new photo locally
       final String newPhotoPath = await LocalStorageService.saveImage(
         File(image.path),
         image.name,
       );
-
-      // Update photo path in Firestore
-      await FirebaseFirestore.instance
-          .collection('admins')
-          .doc(user.uid)
-          .update({
-        'photoPath': newPhotoPath,
-        'photoUpdatedAt': FieldValue.serverTimestamp(),
-      });
-
       setState(() {
         _photoPath = newPhotoPath;
         _isLoading = false;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profile photo updated successfully'),
+          content: Text('Photo de profil mise à jour'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      
+      setState(() { _isLoading = false; });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error updating profile photo: $e'),
+          content: Text('Erreur lors de la mise à jour de la photo: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -110,7 +69,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _currentIndex = index;
     });
-    
     switch (index) {
       case 0:
         Navigator.pushReplacementNamed(context, '/home');
@@ -128,7 +86,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Paramètres'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -172,6 +130,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+
+                  // Section Apparence
+                
+                    
+                  
+                  const Divider(),
+                  ListTile(
+                    title: const Text('Thème Sombre'),
+                    leading: const Icon(Icons.brightness_6),
+                    trailing: Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, child) => Switch(
+                        value: themeProvider.isDarkTheme,
+                        onChanged: (value) {
+                          themeProvider.setTheme(value);
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  const Divider(),
+                  ListTile(
+                    title: const Text('Langue'),
+                    leading: const Icon(Icons.language),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Choisir la langue'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                title: const Text('Français'),
+                                onTap: () {
+                                  // TODO: Implémenter le changement de langue vers le français
+                                  Navigator.of(context).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Langue changée en Français')),
+                                  );
+                                },
+                              ),
+                              ListTile(
+                                title: const Text('العربية'),
+                                onTap: () {
+                                  // TODO: Implémenter le changement de langue vers l'arabe
+                                  Navigator.of(context).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('تم تغيير اللغة إلى العربية')),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(),
+                   ListTile(
+                    title: const Text('Déconnexion'),
+                    leading: const Icon(Icons.exit_to_app, color: Colors.red),
+                    onTap: () {
+                      Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+                    },
+                  ),
                 ],
               ),
             ),
@@ -181,4 +208,4 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-} 
+}

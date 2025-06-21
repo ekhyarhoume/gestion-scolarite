@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
-import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:gestion_scolarite/services/local_storage_service.dart';
+import 'package:gestion_scolarite/services/sqlite_service.dart';
+import 'package:gestion_scolarite/models/student.dart';
 
 class StudentRegistrationScreen extends StatefulWidget {
   const StudentRegistrationScreen({Key? key}) : super(key: key);
@@ -70,52 +70,34 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
       _showErrorDialog("Veuillez remplir tous les champs obligatoires");
       return;
     }
-
     try {
       // Save image locally
       final String imagePath = await LocalStorageService.saveImage(
         File(_image!.path),
         _image!.name,
       );
-
-      // Save student data to Firestore
-      final studentData = {
-        'name': nameController.text,
-        'lastName': lastNameController.text,
-        'email': emailController.text,
-        'bacNumber': bacNumberController.text,
-        'nni': nniController.text,
-        'filiere': selectedFiliere,
-        'annee': selectedAnnee,
-        'photoPath': imagePath,  // Store local path instead of URL
-        'montant': double.tryParse(montantController.text) ?? 0.0,
-        'payment': paymentController.text,
-        'paymentStatus': _paymentMade ? 'Payé' : 'Non payé',
-        'registrationDate': Timestamp.now(),
-        'type': 'nouveau',
-      };
-
-      await FirebaseFirestore.instance.collection('students').add(studentData);
-
+      // Create a new Student object
+      final student = Student(
+        name: nameController.text,
+        lastName: lastNameController.text,
+        studentId: '', // Not provided for new students
+        bacNumber: bacNumberController.text,
+        email: emailController.text,
+        phone: '', // Not provided
+        filiere: selectedFiliere!,
+        annee: selectedAnnee!,
+        photoPath: imagePath,
+        montant: double.tryParse(montantController.text) ?? 0.0,
+        paymentStatus: _paymentMade ? 'Payé' : 'Non payé',
+        createdAt: DateTime.now().toIso8601String(),
+      );
+      await SQLiteService().insertStudent(student);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Inscription réussie !')),
       );
-
-      // Navigate to ReceiptScreen after successful registration
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ReceiptScreen(
-            name: nameController.text,
-            lastName: lastNameController.text,
-            filiere: selectedFiliere!,
-            annee: selectedAnnee!,
-            montant: 100.0,
-          ),
-        ),
-      );
+      // Optionally navigate to receipt or home
     } catch (e) {
-      _showErrorDialog("Une erreur est survenue lors de l'inscription: ${e.toString()}");
+      _showErrorDialog("Une erreur est survenue lors de l'inscription: "+e.toString());
     }
   }
 
