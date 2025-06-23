@@ -10,10 +10,13 @@ import 'package:gestion_scolarite/screens/settings_screen.dart';
 import 'package:gestion_scolarite/screens/student_profile_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 
 // TEST COMMENT
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Print the SQLite database path
+  print('SQLite DB Path: ' + await getDatabasesPath() + '/students.db');
   // Removed Firebase initialization
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
