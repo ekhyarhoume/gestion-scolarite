@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:gestion_scolarite/services/local_storage_service.dart';
+import 'package:provider/provider.dart';
+import 'package:gestion_scolarite/providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -15,7 +15,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   int _currentIndex = 2;
-  String? _profilePhotoUrl;
+  String? _photoPath;
   bool _isLoading = false;
 
   @override
@@ -25,23 +25,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadProfilePhoto() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final doc = await FirebaseFirestore.instance
-            .collection('admins')
-            .doc(user.uid)
-            .get();
-        
-        if (doc.exists && doc.data()?['photoUrl'] != null) {
-          setState(() {
-            _profilePhotoUrl = doc.data()?['photoUrl'];
-          });
-        }
-      }
-    } catch (e) {
-      print('Erreur lors du chargement de la photo: $e');
-    }
+    // Load photo from local storage if needed
+    // For now, just keep the path if already set
+    setState(() {});
   }
 
   Future<void> _updateProfilePhoto() async {
@@ -51,60 +37,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
         source: ImageSource.gallery,
         imageQuality: 70,
       );
-
       if (image == null) return;
-
+      setState(() { _isLoading = true; });
+      // Save new photo locally
+      final String newPhotoPath = await LocalStorageService.saveImage(
+        File(image.path),
+        image.name,
+      );
       setState(() {
-        _isLoading = true;
-      });
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Utilisateur non connecté');
-
-      // Supprimer l'ancienne photo si elle existe
-      if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty) {
-        try {
-          final oldPhotoRef = FirebaseStorage.instance.refFromURL(_profilePhotoUrl!);
-          await oldPhotoRef.delete();
-        } catch (e) {
-          print('Erreur lors de la suppression de l\'ancienne photo: $e');
-        }
-      }
-
-      // Télécharger la nouvelle photo
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('admin_photos/${user.uid}_${DateTime.now().millisecondsSinceEpoch}');
-      
-      final uploadTask = storageRef.putFile(File(image.path));
-      final snapshot = await uploadTask;
-      final newPhotoUrl = await snapshot.ref.getDownloadURL();
-
-      // Mettre à jour l'URL de la photo dans Firestore
-      await FirebaseFirestore.instance
-          .collection('admins')
-          .doc(user.uid)
-          .update({
-        'photoUrl': newPhotoUrl,
-        'photoUpdatedAt': FieldValue.serverTimestamp(),
-      });
-
-      setState(() {
-        _profilePhotoUrl = newPhotoUrl;
+        _photoPath = newPhotoPath;
         _isLoading = false;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Photo de profil mise à jour avec succès'),
+          content: Text('Photo de profil mise à jour'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      
+      setState(() { _isLoading = false; });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erreur lors de la mise à jour de la photo: $e'),
@@ -118,7 +69,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _currentIndex = index;
     });
-    
     switch (index) {
       case 0:
         Navigator.pushReplacementNamed(context, '/home');
@@ -136,165 +86,126 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Paramètres',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF395D5D),
-        elevation: 30,
+        title: const Text('Paramètres'),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue, Colors.green],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with profile info
-              Center(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator()
-                          : CircleAvatar(
-                              radius: 50,
-                              backgroundImage: _profilePhotoUrl != null
-                                  ? NetworkImage(_profilePhotoUrl!)
-                                  : null,
-                              child: _profilePhotoUrl == null
-                                  ? const Icon(Icons.person, size: 50, color: Colors.white)
-                                  : null,
-                            ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Stack(
+                    children: [
+                      Container(
                         decoration: BoxDecoration(
-                          color: Colors.teal,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: Colors.white, width: 3),
                         ),
-                        child: IconButton(
-                          icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          onPressed: _isLoading ? null : _updateProfilePhoto,
-                          tooltip: 'Modifier la photo de profil',
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundImage: _photoPath != null
+                              ? FileImage(File(_photoPath!))
+                              : null,
+                          child: _photoPath == null
+                              ? const Icon(Icons.person, size: 60, color: Colors.white)
+                              : null,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Center(
-                child: Text(
-                  'Profil Administrateur',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.teal,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                            onPressed: _updateProfilePhoto,
+                            tooltip: 'Update profile photo',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 30),
+                  const SizedBox(height: 24),
 
-              // Contact Info
-              Card(
-                color: Colors.white.withOpacity(0.2),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.phone, color: Colors.white),
-                      title: const Text(
-                        '+22231676691',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        onPressed: () {
-                          // TODO: Implement edit phone functionality
+                  // Section Apparence
+                
+                    
+                  
+                  const Divider(),
+                  ListTile(
+                    title: const Text('Thème Sombre'),
+                    leading: const Icon(Icons.brightness_6),
+                    trailing: Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, child) => Switch(
+                        value: themeProvider.isDarkTheme,
+                        onChanged: (value) {
+                          themeProvider.setTheme(value);
                         },
                       ),
                     ),
-                    const Divider(color: Colors.white),
-                    ListTile(
-                      leading: const Icon(Icons.email, color: Colors.white),
-                      title: const Text(
-                        'iscae.mr@gmail.com',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        onPressed: () {
-                          // TODO: Implement edit email functionality
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
 
-              const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-              // Additional Settings
-              Card(
-                color: Colors.white.withOpacity(0.2),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.language, color: Colors.white),
-                      title: const Text(
-                        'Langue',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white),
-                      onTap: () {
-                        // TODO: Implement language selection
-                      },
-                    ),
-                    const Divider(color: Colors.white),
-                    ListTile(
-                      leading: const Icon(Icons.logout, color: Colors.white),
-                      title: const Text(
-                        'Déconnexion',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      onTap: () async {
-                        try {
-                          await FirebaseAuth.instance.signOut();
-                          Navigator.pushReplacementNamed(context, '/login');
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Erreur lors de la déconnexion: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
+                  const Divider(),
+                  // ListTile(
+                  //   title: const Text('Langue'),
+                  //   leading: const Icon(Icons.language),
+                  //   trailing: const Icon(Icons.arrow_forward_ios),
+                  //   onTap: () {
+                  //     showDialog(
+                  //       context: context,
+                  //       builder: (context) => AlertDialog(
+                  //         title: const Text('Choisir la langue'),
+                  //         content: Column(
+                  //           mainAxisSize: MainAxisSize.min,
+                  //           children: [
+                  //             ListTile(
+                  //               title: const Text('Français'),
+                  //               onTap: () {
+                  //                 // TODO: Implémenter le changement de langue vers le français
+                  //                 Navigator.of(context).pop();
+                  //                 ScaffoldMessenger.of(context).showSnackBar(
+                  //                   const SnackBar(content: Text('Langue changée en Français')),
+                  //                 );
+                  //               },
+                  //             ),
+                  //             ListTile(
+                  //               title: const Text('العربية'),
+                  //               onTap: () {
+                  //                 // TODO: Implémenter le changement de langue vers l'arabe
+                  //                 Navigator.of(context).pop();
+                  //                 ScaffoldMessenger.of(context).showSnackBar(
+                  //                   const SnackBar(content: Text('تم تغيير اللغة إلى العربية')),
+                  //                 );
+                  //               },
+                  //             ),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     );
+                  //   },
+                  // ),
+                  const Divider(),
+                   ListTile(
+                    title: const Text('Déconnexion'),
+                    leading: const Icon(Icons.exit_to_app, color: Colors.red),
+                    onTap: () {
+                      Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+                    },
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _currentIndex,
         onTap: _onNavTap,
       ),
     );
   }
-} 
+}

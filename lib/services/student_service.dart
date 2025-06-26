@@ -1,3 +1,5 @@
+// This file is deprecated. Use SQLiteService for all student data management.
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestion_scolarite/models/student.dart';
 
@@ -35,7 +37,8 @@ class StudentService {
         ...data,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      return getStudent(id);
+      // Correction: attendre le résultat de getStudent
+      return await getStudent(id);
     } catch (e) {
       throw Exception('Erreur lors de la mise à jour de l\'étudiant: $e');
     }
@@ -89,7 +92,8 @@ class StudentService {
         'status': status,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      return getStudent(id);
+      // Correction: attendre le résultat de getStudent
+      return await getStudent(id);
     } catch (e) {
       throw Exception('Erreur lors de la mise à jour du statut: $e');
     }
@@ -102,7 +106,8 @@ class StudentService {
         'paymentStatus': status,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      return getStudent(id);
+      // Correction: attendre le résultat de getStudent
+      return await getStudent(id);
     } catch (e) {
       throw Exception('Erreur lors de la mise à jour du statut de paiement: $e');
     }
@@ -115,7 +120,8 @@ class StudentService {
         'photoUrl': photoUrl,
         'photoUpdatedAt': FieldValue.serverTimestamp(),
       });
-      return getStudent(id);
+      // Correction: attendre le résultat de getStudent
+      return await getStudent(id);
     } catch (e) {
       throw Exception('Erreur lors de la mise à jour de la photo: $e');
     }
@@ -132,4 +138,32 @@ class StudentService {
             .map((doc) => Student.fromFirestore(doc))
             .toList());
   }
-} 
+}
+
+extension StudentFirestore on Student {
+  // Add actual getters for fields used in Firestore
+  String get status => ''; // Replace with actual logic if needed
+  String? get photoUrl => photoPath; // Use photoPath from your model
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'name': name,
+      'lastName': lastName,
+      'studentId': studentId,
+      'bacNumber': bacNumber,
+      'email': email,
+      'phone': phone,
+      'filiere': filiere,
+      'annee': annee,
+      'photoUrl': photoPath,
+      'montant': montant,
+      'paymentStatus': paymentStatus,
+      'status': status,
+      'createdAt': createdAt,
+      // Add other fields as necessary
+    };
+  }
+
+  // Add a fromFirestore factory if needed by your codebase
+  
+}

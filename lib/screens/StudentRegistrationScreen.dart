@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
-import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:gestion_scolarite/widgets/bottom_nav_bar.dart';
+import 'package:gestion_scolarite/services/local_storage_service.dart';
+import 'package:gestion_scolarite/services/sqlite_service.dart';
+import 'package:gestion_scolarite/models/student.dart';
 
 class StudentRegistrationScreen extends StatefulWidget {
   const StudentRegistrationScreen({Key? key}) : super(key: key);
@@ -37,7 +37,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
     'Technique Commerciale et Marketing',
     'Statistique appliquee a la economie'
   ];
-  final List<String> annees = ['L1', 'L2', 'L3', 'M1', 'M2'];
+  final List<String> annees = ['L1', 'M1'];
 
   Future<void> _pickImage() async {
     final ImagePicker _picker = ImagePicker();
@@ -59,110 +59,198 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   }
 
   Future<void> _registerStudent() async {
-    // Validation des champs
-    if (nameController.text.isEmpty) {
-      _showErrorDialog("Le nom est requis");
+    if (nameController.text.isEmpty ||
+        lastNameController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        bacNumberController.text.isEmpty ||
+        nniController.text.isEmpty ||
+        selectedFiliere == null ||
+        selectedAnnee == null ||
+        _image == null) {
+      _showErrorDialog("Veuillez remplir tous les champs obligatoires");
       return;
     }
-    if (lastNameController.text.isEmpty) {
-      _showErrorDialog("Le prénom est requis");
-      return;
-    }
-    if (emailController.text.isEmpty ||
-        !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(emailController.text)) {
-      _showErrorDialog("Veuillez entrer une adresse email valide");
-      return;
-    }
-    if (bacNumberController.text.isEmpty ||
-        !RegExp(r'^\d{5}$').hasMatch(bacNumberController.text)) {
-      _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
-      return;
-    }
-    if (nniController.text.isEmpty ||
-        !RegExp(r'^\d{10}$').hasMatch(nniController.text)) {
-      _showErrorDialog("Le numéro NNI doit contenir exactement 10 chiffres");
-      return;
-    }
-    if (selectedFiliere == null) {
-      _showErrorDialog("Veuillez sélectionner une filière");
-      return;
-    }
-    if (selectedAnnee == null) {
-      _showErrorDialog("Veuillez sélectionner une année d'étude");
-      return;
-    }
-    if (_image == null) {
-      _showErrorDialog("Veuillez choisir une photo");
-      return;
-    }
-
     try {
-      // Télécharger l'image sur Firebase Storage
-      final Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('student_photos/${_image!.name}');
-      final UploadTask uploadTask = storageRef.putFile(File(_image!.path));
-      final TaskSnapshot downloadUrl = await uploadTask;
-      final String imageUrl = await downloadUrl.ref.getDownloadURL();
-
-      // Sauvegarder les données de l'étudiant dans Firestore
-      final studentData = {
-        'name': nameController.text,
-        'lastName': lastNameController.text,
-        'email': emailController.text,
-        'bacNumber': bacNumberController.text,
-        'nni': nniController.text,
-        'filiere': selectedFiliere,
-        'annee': selectedAnnee,
-        'photoUrl': imageUrl,
-        'montant': double.tryParse(montantController.text) ?? 0.0,
-        'payment': paymentController.text,
-        'paymentStatus': _paymentMade ? 'Payé' : 'Non payé',
-        'registrationDate': Timestamp.now(),
-        'type': 'nouveau',
-      };
-
-      await FirebaseFirestore.instance.collection('students').add(studentData);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inscription réussie !')),
+      // Save image locally
+      final String imagePath = await LocalStorageService.saveImage(
+        File(_image!.path),
+        _image!.name,
       );
-
-      // Naviguer vers le ReceiptScreen après inscription réussie
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ReceiptScreen(
-            name: nameController.text,
-            lastName: lastNameController.text,
-            filiere: selectedFiliere!,
-            annee: selectedAnnee!,
-            montant: 100.0,
-          ),
-        ),
+      // Generate a unique student ID
+      final String generatedStudentId = await SQLiteService().generateUniqueStudentId();
+      // Create a new Student object
+      final student = Student(
+        name: nameController.text,
+        lastName: lastNameController.text,
+        studentId: generatedStudentId,
+        bacNumber: bacNumberController.text,
+        email: emailController.text,
+        phone: '', // Not provided
+        filiere: selectedFiliere!,
+        annee: selectedAnnee!,
+        photoPath: imagePath,
+        montant: double.tryParse(montantController.text) ?? 0.0,
+        paymentStatus: _paymentMade ? 'Payé' : 'Non payé',
+        createdAt: DateTime.now().toIso8601String(),
       );
+      await SQLiteService().insertStudent(student);
+      
+      // Afficher le message de succès personnalisé
+      _showSuccessDialog(student);
     } catch (e) {
-      _showErrorDialog("Une erreur est survenue lors de l'inscription: ${e.toString()}");
+      _showErrorDialog("Une erreur est survenue lors de l'inscription: "+e.toString());
     }
   }
 
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Erreur"),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("OK"),
+      builder: (context) => AlertDialog(
+        title: const Text('Erreur'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessDialog(Student student) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [Colors.green, Colors.lightGreen],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        );
-      },
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Colors.white,
+                size: 80,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Inscription Réussie !',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 15),
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  children: [
+                    _buildSuccessInfo('Nom', '${student.name} ${student.lastName}'),
+                    _buildSuccessInfo('ID Étudiant', student.studentId),
+                    _buildSuccessInfo('Filière', student.filiere),
+                    _buildSuccessInfo('Année', student.annee),
+                    _buildSuccessInfo('Email', student.email),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Votre inscription a été enregistrée avec succès. Vous pouvez maintenant consulter votre reçu d\'inscription.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 25),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(context, '/home');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: const Text('Retour à l\'accueil'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(context, '/receipt-detail', arguments: student);
+                      
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: const Text('Voir le reçu'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessInfo(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

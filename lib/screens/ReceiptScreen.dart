@@ -1,25 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:gestion_scolarite/models/student.dart';
+import 'package:gestion_scolarite/screens/home_screen.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class ReceiptScreen extends StatelessWidget {
-  final String name;
-  final String lastName;
-  final String filiere;
-  final String annee;
-  final double montant;
+  final String? name;
+  final String? lastName;
+  final String? filiere;
+  final String? annee;
+  final double? montant;
+  final String? studentId;
+  final String? createdAt;
 
   const ReceiptScreen({
     Key? key,
-    required this.name,
-    required this.lastName,
-    required this.filiere,
-    required this.annee,
-    required this.montant,
+    this.name,
+    this.lastName,
+    this.filiere,
+    this.annee,
+    this.montant,
+    this.studentId,
+    this.createdAt,
   }) : super(key: key);
 
-  Future<void> _printReceipt() async {
+  String _formatDate(String? dateString) {
+    if (dateString == null) return 'Date non disponible';
+    try {
+      final date = DateTime.parse(dateString);
+      return date.toLocal().toString().split('.')[0]; // Remove milliseconds
+    } catch (e) {
+      return 'Date non disponible';
+    }
+  }
+
+  Future<void> _printReceipt(BuildContext context) async {
+    final student = ModalRoute.of(context)!.settings.arguments as Student;
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -35,14 +52,18 @@ class ReceiptScreen extends StatelessWidget {
                     style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
               ),
               pw.SizedBox(height: 20),
-              pw.Text('Nom: $name $lastName', style: pw.TextStyle(fontSize: 18)),
-              pw.Text('Filière: $filiere', style: pw.TextStyle(fontSize: 18)),
-              pw.Text('Année d\'étude: $annee', style: pw.TextStyle(fontSize: 18)),
+              pw.Text('Numéro d\'étudiant: ${student.studentId}', style: pw.TextStyle(fontSize: 16)),
+              pw.SizedBox(height: 10),
+              pw.Text('Nom: ${student.name} ${student.lastName}', style: pw.TextStyle(fontSize: 18)),
+              pw.Text('Filière: ${student.filiere}', style: pw.TextStyle(fontSize: 18)),
+              pw.Text('Année d\'étude: ${student.annee}', style: pw.TextStyle(fontSize: 18)),
               pw.SizedBox(height: 20),
-              pw.Text('Montant payé: $montant MRU', style: pw.TextStyle(fontSize: 18)),
+              pw.Text('Montant payé: ${student.montant} MRU', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 20),
-              pw.Text('Date de paiement: ${DateTime.now().toLocal()}',
-                  style: pw.TextStyle(fontSize: 18)),
+              pw.Text('Date d\'inscription: ${_formatDate(student.createdAt)}',
+                  style: pw.TextStyle(fontSize: 16)),
+              pw.Text('Date de génération: ${DateTime.now().toLocal().toString().split('.')[0]}',
+                  style: pw.TextStyle(fontSize: 16)),
             ],
           );
         },
@@ -56,8 +77,14 @@ class ReceiptScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final student = ModalRoute.of(context)!.settings.arguments as Student;
+    // Display the info from the student object
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+        ),
         title: Center(
           child: const Text('Reçu d\'inscription',
           style: TextStyle(
@@ -77,18 +104,24 @@ class ReceiptScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            Text('Nom: $name $lastName', style: TextStyle(fontSize: 18)),
-            Text('Filière: $filiere', style: TextStyle(fontSize: 18)),
-            Text('Année d\'étude: $annee', style: TextStyle(fontSize: 18)),
+            Text('Numéro d\'étudiant: ${student.studentId}', style: TextStyle(fontSize: 16,)),
             const SizedBox(height: 20),
-            Text('Montant payé: $montant MRU', style: TextStyle(fontSize: 18)),
+            Text('Nom: ${student.name} ${student.lastName}', style: TextStyle(fontSize: 18)),
+            Text('Filière: ${student.filiere}', style: TextStyle(fontSize: 18)),
+            Text('Année d\'étude: ${student.annee}', style: TextStyle(fontSize: 18)),
             const SizedBox(height: 20),
-            Text('Date de paiement: ${DateTime.now().toLocal()}',
-                style: TextStyle(fontSize: 18)),
+            Text('Montant payé: ${student.montant} MRU', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _printReceipt,
-              child: const Text('Imprimer le reçu'),
+            Text('Date d\'inscription: ${_formatDate(student.createdAt)}',
+                style: TextStyle(fontSize: 16)),
+            Text('Date de génération: ${DateTime.now().toLocal().toString().split('.')[0]}',
+                style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 30),
+            Center(
+              child: ElevatedButton(
+                onPressed: () => _printReceipt(context),
+                child: const Text('Imprimer le reçu'),
+              ),
             ),
           ],
         ),
