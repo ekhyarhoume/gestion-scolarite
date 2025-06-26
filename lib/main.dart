@@ -4,14 +4,30 @@ import 'package:gestion_scolarite/pages/HomePage.dart';
 import 'package:gestion_scolarite/providers/theme_provider.dart';
 import 'package:gestion_scolarite/screens/LoginRegisterScreen.dart';
 import 'package:gestion_scolarite/screens/ReceiptScreen.dart';
+import 'package:gestion_scolarite/screens/ReceiptListScreen.dart';
 import 'package:gestion_scolarite/screens/RegistrationForm.dart';
+import 'package:gestion_scolarite/screens/StudentRegistrationScreen.dart';
 import 'package:gestion_scolarite/screens/home_screen.dart';
 import 'package:gestion_scolarite/screens/settings_screen.dart';
 import 'package:gestion_scolarite/screens/student_profile_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gestion_scolarite/services/sqlite_service.dart';
 
-// TEST COMMENT
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+class LocaleProvider with ChangeNotifier {
+  Locale _locale = const Locale('fr');
+  Locale get locale => _locale;
+
+  void setLocale(Locale locale) {
+    if (!AppLocalizations.supportedLocales.contains(locale)) return;
+    _locale = locale;
+    notifyListeners();
+  }
+}
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Removed Firebase initialization
@@ -19,6 +35,11 @@ void main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
+  // Print all students in the database on launch
+  final students = await SQLiteService().getAllStudents();
+  for (var student in students) {
+    print('Student: \\nName: \\${student.name} \\nID: \\${student.studentId} \\nBAC: \\${student.bacNumber}');
+  }
   runApp(const MyApp());
 }
 
@@ -27,10 +48,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
+      ],
+      child: Consumer2<ThemeProvider, LocaleProvider>(
+        builder: (context, themeProvider, localeProvider, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Gestion de Scolarité',
@@ -53,6 +77,9 @@ class MyApp extends StatelessWidget {
                       ),
                     ),
                   ),
+            locale: localeProvider.locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             builder: (context, child) {
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
@@ -63,19 +90,13 @@ class MyApp extends StatelessWidget {
             routes: {
               '/': (context) => const LoginRegisterScreen(),
               '/inscription': (context) => const RegistrationScreen(),
+              '/insecrie': (context) => const StudentRegistrationScreen(),
               '/home': (context) => const HomeScreen(),
               '/home-page': (context) => const HomePage(),
               '/settings': (context) => const SettingsScreen(),
               '/student-profile': (context) => const StudentProfileScreen(),
-              '/receipt': (context) => const ReceiptScreen(
-                    name: '',
-                    lastName: '',
-                    filiere: '',
-                    annee: '',
-                    montant: 0.0,
-                    studentId: '',
-                    createdAt: '',
-                  ),
+              '/receipt': (context) => const ReceiptListScreen(),
+              '/receipt-detail': (context) => const ReceiptScreen(),
             },
           );
         },

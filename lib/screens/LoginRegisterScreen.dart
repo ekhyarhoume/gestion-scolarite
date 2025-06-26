@@ -14,7 +14,6 @@ class LoginRegisterScreen extends StatefulWidget {
 
 class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   String? errorMessage = '';
-  bool isLogin = true;
   bool _isLoading = false;
   bool _isNewStudentRegistration = true; // Pour basculer entre BAC et Matricule
 
@@ -22,26 +21,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   final TextEditingController _studentIdController = TextEditingController();
   final TextEditingController _bacNumberController = TextEditingController();
   final TextEditingController _matriculeController = TextEditingController();
-
-  Future<void> _loginWithStudentId() async {
-    if (_studentIdController.text.isEmpty) {
-      setState(() { errorMessage = 'Veuillez entrer votre numéro d\'étudiant'; });
-      return;
-    }
-    setState(() { _isLoading = true; errorMessage = ''; });
-    try {
-      final student = await SQLiteService().getStudentById(_studentIdController.text.trim());
-      if (student != null) {
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        setState(() { errorMessage = 'Aucun étudiant trouvé avec ce numéro'; });
-      }
-    } catch (e) {
-      setState(() { errorMessage = e.toString(); });
-    } finally {
-      setState(() { _isLoading = false; });
-    }
-  }
 
   Future<void> _handleRegistrationVerification() async {
     if (_isNewStudentRegistration) {
@@ -62,7 +41,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
       if (student != null) {
         setState(() { errorMessage = 'Un étudiant avec ce numéro de BAC existe déjà.'; });
       } else {
-        Navigator.pushReplacementNamed(context, '/inscription');
+        Navigator.pushReplacementNamed(context, '/insecrie');
       }
     } catch (e) {
       setState(() { errorMessage = e.toString(); });
@@ -72,22 +51,43 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   }
 
   Future<void> _verifyOldStudent() async {
-    if (_matriculeController.text.isEmpty) {
+    final matricule = _matriculeController.text.trim();
+    if (matricule.isEmpty) {
       setState(() { errorMessage = 'Veuillez entrer votre matricule'; });
       return;
     }
     setState(() { _isLoading = true; errorMessage = ''; });
     try {
-      final student = await SQLiteService().getStudentById(_matriculeController.text.trim());
+      final student = await SQLiteService().getStudentById(matricule);
       if (student != null) {
-        setState(() { errorMessage = 'Un compte pour ce matricule existe déjà. Veuillez vous connecter.'; });
+        // Matricule found: redirect to registration form for old students
+        Navigator.pushReplacementNamed(context, '/inscription', arguments: student);
       } else {
-        // Si l'étudiant n'est pas trouvé par matricule, peut-être qu'il devrait s'inscrire normalement.
-        // Ou afficher un message que le matricule n'est pas reconnu.
+        // Not found: suggest registration
         setState(() { errorMessage = 'Matricule non reconnu. Veuillez vérifier ou vous inscrire comme nouvel étudiant.'; });
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text("Non trouvé"),
+            content: Text("Matricule non reconnu. Voulez-vous vous inscrire comme nouvel étudiant ?"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacementNamed(context, '/insecrie');
+                },
+                child: Text("S'inscrire"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Annuler"),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
-      setState(() { errorMessage = e.toString(); });
+      setState(() { errorMessage = "Erreur lors de la connexion. Veuillez réessayer."; });
     } finally {
       setState(() { _isLoading = false; });
     }
@@ -111,7 +111,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
     return ElevatedButton(
       onPressed: _isLoading
           ? null
-          : (isLogin ? _loginWithStudentId : _handleRegistrationVerification),
+          : (_handleRegistrationVerification),
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color.fromARGB(255, 210, 10, 255),
         padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 50),
@@ -129,33 +129,9 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
               ),
             )
           : Text(
-              isLogin ? 'Connexion' : 'Vérifier',
+              'Entrer',
               style: const TextStyle(color: Colors.white, fontSize: 24),
             ),
-    );
-  }
-
-  Widget _switchFormButton() {
-    return ElevatedButton(
-      onPressed: () {
-        setState(() {
-          isLogin = !isLogin;
-          errorMessage = '';
-          // Réinitialiser le type d'inscription lors du basculement
-          _isNewStudentRegistration = true;
-        });
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color.fromARGB(255, 194, 194, 194),
-        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 45),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-      ),
-      child: Text(
-        isLogin ? "Je suis un nouveau étudiant" : "J'ai déjà un compte",
-        style: const TextStyle(color: Colors.black, fontSize: 20),
-      ),
     );
   }
 
@@ -163,30 +139,38 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        ChoiceChip(
-          label: Text('Nouveau'),
-          selected: _isNewStudentRegistration,
-          onSelected: (selected) {
-            if (selected) {
-              setState(() {
-                _isNewStudentRegistration = true;
-                errorMessage = '';
-              });
-            }
-          },
+        SizedBox(
+          width: 100,
+          height: 40,
+          child: ChoiceChip(
+            label: const Text('Nouveau'),
+            selected: _isNewStudentRegistration,
+            onSelected: (selected) {
+              if (selected) {
+                setState(() {
+                  _isNewStudentRegistration = true;
+                  errorMessage = '';
+                });
+              }
+            },
+          ),
         ),
-        SizedBox(width: 10),
-        ChoiceChip(
-          label: Text('Ancien'),
-          selected: !_isNewStudentRegistration,
-          onSelected: (selected) {
-            if (selected) {
-              setState(() {
-                _isNewStudentRegistration = false;
-                errorMessage = '';
-              });
-            }
-          },
+        const SizedBox(width: 15),
+        SizedBox(
+          width: 100,
+          height: 40,
+          child: ChoiceChip(
+            label: const Text('Ancien'),
+            selected: !_isNewStudentRegistration,
+            onSelected: (selected) {
+              if (selected) {
+                setState(() {
+                  _isNewStudentRegistration = false;
+                  errorMessage = '';
+                });
+              }
+            },
+          ),
         ),
       ],
     );
@@ -228,29 +212,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                     padding: EdgeInsets.fromLTRB(w * .1, h * .01, w * .1, h * .01),
                     child: Column(
                       children: [
-                        if (isLogin) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(top: 20),
-                            child: TextFormField(
-                              controller: _studentIdController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: const Color(0x3900FF37),
-                                hintText: "Numéro d'étudiant",
-                                hintStyle: const TextStyle(color: Color(0xFF717171)),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide.none,
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.person_sharp,
-                                  color: Color.fromARGB(255, 159, 159, 159),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ] else ...[
                           _buildRegistrationTypeToggle(),
                           SizedBox(height: 15),
                           if (_isNewStudentRegistration)
@@ -263,16 +224,30 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                                   filled: true,
                                   fillColor: const Color(0x3900FF37),
                                   hintText: "Numéro de BAC",
-                                  hintStyle: const TextStyle(color: Color(0xFF717171)),
+                                  hintStyle: const TextStyle(color: Color.fromARGB(255, 8, 8, 8)),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(30),
                                     borderSide: BorderSide.none,
                                   ),
                                   prefixIcon: const Icon(
                                     Icons.school,
-                                    color: Color.fromARGB(255, 159, 159, 159),
+                                    color: Color.fromARGB(255, 210, 10, 255),
                                   ),
                                 ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Veuillez entrer votre numéro de BAC';
+                                  }
+                                  // Vérifier que la valeur contient exactement 5 chiffres
+                                  if (value.length != 5) {
+                                    return 'Le numéro de BAC doit contenir exactement 5 chiffres';
+                                  }
+                                  final regExp = RegExp(r'^\d{5}$'); // Exactement 5 chiffres du début à la fin
+                                  if (!regExp.hasMatch(value)) {
+                                    return 'Le numéro de BAC doit contenir uniquement 5 chiffres';
+                                  }
+                                  return null;
+                                },
                               ),
                             )
                           else
@@ -285,29 +260,33 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                                   filled: true,
                                   fillColor: const Color(0x3900FF37),
                                   hintText: "Matricule",
-                                  hintStyle: const TextStyle(color: Color(0xFF717171)),
+                                  hintStyle: const TextStyle(color: Color.fromARGB(255, 7, 7, 7)),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(30),
                                     borderSide: BorderSide.none,
                                   ),
                                   prefixIcon: const Icon(
                                     Icons.person_pin,
-                                    color: Color.fromARGB(255, 159, 159, 159),
+                                    color: Color.fromARGB(255, 210, 10, 255),
                                   ),
                                 ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Veuillez entrer votre matricule';
+                                  }
+                                  final regExp = RegExp(r'^I\d{5}$');
+                                  if (!regExp.hasMatch(value)) {
+                                    return 'Le matricule doit commencer par I suivi de 5 chiffres';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
-                        ],
+                          ],
+                        ),),
                         _errorMessage(),
                         _submitButton(),
-                        const SizedBox(height: 10),
-                        _switchFormButton(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ]),)
           ),
         ),
       ),

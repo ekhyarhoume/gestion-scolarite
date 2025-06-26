@@ -85,4 +85,27 @@ class SQLiteService {
     final db = await database;
     return await db.delete('students', where: 'studentId = ?', whereArgs: [studentId]);
   }
+
+  // Generates a unique student ID in the format 'I' + 5 digits (18000-20000)
+  Future<String> generateUniqueStudentId() async {
+    final db = await database;
+    const int min = 18000;
+    const int max = 20000;
+    String newId;
+    bool exists = true;
+    final random = DateTime.now().millisecondsSinceEpoch;
+    int attempt = 0;
+    do {
+      // Use a deterministic but varying approach to avoid infinite loops
+      int number = min + ((random + attempt) % (max - min + 1));
+      newId = 'I' + number.toString().padLeft(5, '0');
+      final result = await db.query('students', where: 'studentId = ?', whereArgs: [newId]);
+      exists = result.isNotEmpty;
+      attempt++;
+      if (attempt > (max - min + 1)) {
+        throw Exception('No available student IDs in the specified range.');
+      }
+    } while (exists);
+    return newId;
+  }
 } 

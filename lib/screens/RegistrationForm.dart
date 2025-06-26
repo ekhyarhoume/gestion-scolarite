@@ -32,7 +32,30 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   bool _paymentSuccessful = false;
   String _registrationStatus = "En cours"; // Statut initial de l'inscription
-    int _currentIndex = 0;
+  int _currentIndex = 0;
+  Student? oldStudent;
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args != null && args is Student) {
+        oldStudent = args;
+        // Pre-fill form fields
+        nameController.text = oldStudent?.name ?? '';
+        lastNameController.text = oldStudent?.lastName ?? '';
+        studentNumberController.text = oldStudent?.studentId ?? '';
+        phoneController.text = oldStudent?.phone ?? '';
+        selectedFiliere = oldStudent?.filiere;
+        selectedAnnee = oldStudent?.annee;
+        // You can pre-fill more fields if needed
+      }
+      _initialized = true;
+    }
+  }
+
   // Méthode pour choisir la photo
   Future<void> _pickImage() async {
     final ImagePicker _picker = ImagePicker();
@@ -66,10 +89,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _showErrorDialog("Le CIN doit contenir exactement 10 chiffres");
       return;
     }
-    // if (phoneController.text.isEmpty || !RegExp(r'^\d{5}$').hasMatch(phoneController.text)) {
-    //   _showErrorDialog("Le numéro Bac doit contenir exactement 5 chiffres");
-    //   return;
-    // }
     if (studentNumberController.text.isEmpty || !RegExp(r'^\d{5}$').hasMatch(studentNumberController.text)) {
       _showErrorDialog("Le numéro d'étudiant doit contenir exactement 5 chiffres");
       return;
@@ -93,8 +112,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         File(_image!.path),
         _image!.name,
       );
-      // Create a new Student object
+      // Create or update Student object
       final student = Student(
+        id: oldStudent?.id,
         name: nameController.text,
         lastName: lastNameController.text,
         studentId: studentNumberController.text,
@@ -106,27 +126,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         photoPath: imagePath,
         montant: double.parse(montantController.text),
         paymentStatus: _paymentSuccessful ? 'Payé' : 'Non payé',
-        createdAt: DateTime.now().toIso8601String(),
+        createdAt: oldStudent?.createdAt ?? DateTime.now().toIso8601String(),
       );
-      await SQLiteService().insertStudent(student);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inscription réussie !')),
-      );
-      // Navigate to ReceiptScreen after successful registration
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ReceiptScreen(
-            name: nameController.text,
-            lastName: lastNameController.text,
-            filiere: selectedFiliere!,
-            annee: selectedAnnee!,
-            montant: double.parse(montantController.text),
-            studentId: studentNumberController.text,
-            createdAt: DateTime.now().toIso8601String(),
-          ),
-        ),
-      );
+      if (oldStudent != null) {
+        await SQLiteService().updateStudent(student);
+      } else {
+        await SQLiteService().insertStudent(student);
+      }
+      _showSuccessDialog(student);
     } catch (e) {
       _showErrorDialog("Une erreur est survenue lors de l'inscription: "+e.toString());
     }
@@ -136,23 +143,149 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Erreur"),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("OK"),
-            ),
-          ],
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Erreur'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
-   void _onNavTap(int index) {
+
+  void _showSuccessDialog(Student student) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [Colors.green, Colors.lightGreen],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Colors.white,
+                size: 80,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Inscription Réussie !',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 15),
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  children: [
+                    _buildSuccessInfo('Nom', '${student.name} ${student.lastName}'),
+                    _buildSuccessInfo('ID Étudiant', student.studentId),
+                    _buildSuccessInfo('Filière', student.filiere),
+                    _buildSuccessInfo('Année', student.annee),
+                    _buildSuccessInfo('Montant', '${student.montant} MRU'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Votre inscription a été enregistrée avec succès. Vous pouvez maintenant consulter votre reçu d\'inscription.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 25),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(context, '/home');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: const Text('Retour à l\'accueil'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(context, '/receipt');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: const Text('Voir le reçu'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Ajoutez ce widget utilitaire pour afficher les infos dans le dialog
+  Widget _buildSuccessInfo(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onNavTap(int index) {
     setState(() {
       _currentIndex = index;
     });

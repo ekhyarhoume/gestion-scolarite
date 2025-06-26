@@ -153,44 +153,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 24),
 
                   const Divider(),
-                  ListTile(
-                    title: const Text('Langue'),
-                    leading: const Icon(Icons.language),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Choisir la langue'),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ListTile(
-                                title: const Text('Français'),
-                                onTap: () {
-                                  // TODO: Implémenter le changement de langue vers le français
-                                  Navigator.of(context).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Langue changée en Français')),
-                                  );
-                                },
-                              ),
-                              ListTile(
-                                title: const Text('العربية'),
-                                onTap: () {
-                                  // TODO: Implémenter le changement de langue vers l'arabe
-                                  Navigator.of(context).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('تم تغيير اللغة إلى العربية')),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                  // ListTile(
+                  //   title: const Text('Langue'),
+                  //   leading: const Icon(Icons.language),
+                  //   trailing: const Icon(Icons.arrow_forward_ios),
+                  //   onTap: () {
+                  //     showDialog(
+                  //       context: context,
+                  //       builder: (context) => AlertDialog(
+                  //         title: const Text('Choisir la langue'),
+                  //         content: Column(
+                  //           mainAxisSize: MainAxisSize.min,
+                  //           children: [
+                  //             ListTile(
+                  //               title: const Text('Français'),
+                  //               onTap: () {
+                  //                 // TODO: Implémenter le changement de langue vers le français
+                  //                 Navigator.of(context).pop();
+                  //                 ScaffoldMessenger.of(context).showSnackBar(
+                  //                   const SnackBar(content: Text('Langue changée en Français')),
+                  //                 );
+                  //               },
+                  //             ),
+                  //             ListTile(
+                  //               title: const Text('العربية'),
+                  //               onTap: () {
+                  //                 // TODO: Implémenter le changement de langue vers l'arabe
+                  //                 Navigator.of(context).pop();
+                  //                 ScaffoldMessenger.of(context).showSnackBar(
+                  //                   const SnackBar(content: Text('تم تغيير اللغة إلى العربية')),
+                  //                 );
+                  //               },
+                  //             ),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     );
+                  //   },
+                  // ),
                   const Divider(),
                    ListTile(
                     title: const Text('Déconnexion'),
