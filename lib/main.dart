@@ -14,17 +14,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gestion_scolarite/services/sqlite_service.dart';
 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-
 class LocaleProvider with ChangeNotifier {
   Locale _locale = const Locale('fr');
   Locale get locale => _locale;
 
-  void setLocale(Locale locale) {
-    if (!AppLocalizations.supportedLocales.contains(locale)) return;
-    _locale = locale;
-    notifyListeners();
-  }
 }
 
 
@@ -78,8 +71,7 @@ class MyApp extends StatelessWidget {
                     ),
                   ),
             locale: localeProvider.locale,
-            supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+         
             builder: (context, child) {
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
